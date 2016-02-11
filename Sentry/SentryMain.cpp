@@ -12,9 +12,12 @@
 #include <string.h>
 #include <signal.h>
 #include "ArmourDetect.h"
+#include <termios.h>
 
 using namespace std;
 using namespace cv;
+
+struct termios config;
 
 volatile sig_atomic_t flag = 0;
 void myFunc(int sig)
@@ -22,8 +25,12 @@ void myFunc(int sig)
 	flag = 1;
 }
 
-bool UsingCam = true;
 
+bool UsingCam = true;
+const int filterSize=1;
+float convYaw[filterSize] = {}; //initialize filter array
+float convPitch[filterSize] = {}; //initialize filter array
+int n=0;
 float yaw=0, pitch=0;
 float last_yaw, last_pitch;
 const uint8_t HEADER = 0xCE; //write
@@ -45,9 +52,12 @@ float Pitch = -30;//-30 to 0
 float deltaY = 0.07; // to be changed with the frequency
 float deltaP = 0.02; // to be changed with the frequency
 
+
+
 void Send_HEADER(uint8_t CMD, int fd);
 void float2bytes(float fl,uint8_t* byteArray);
 void receive(int fd);
+void SerialSetup(int fd);
 
 typedef enum
 {
@@ -69,7 +79,7 @@ Rx_State_e rx_state;
 Rx_Struct_t rx_struct;
 
 bool update(float yaw, float pitch) {
-	return (fabs(yaw-last_yaw)>0.6 || fabs(pitch-last_pitch)>0.3);
+	return (fabs(yaw-last_yaw)>0.8 || fabs(pitch-last_pitch)>0.4);
 }
 
 int main()
@@ -92,7 +102,12 @@ int main()
 		cout << "Port " << strSerialPort << " successfully opened!\n";
 	}
 
-	CamInitial();
+	SerialSetup(fd);
+
+	int CamSetup=CamInitial();
+	if(CamSetup==-1){
+		return 0;
+	}
 	time_t last_time_Mv;
 	time_t last_time_Rt;
 	time(&last_time_Mv);
@@ -106,12 +121,23 @@ int main()
 		time(&this_time); //delay
 		
 		Detect();
+		float fyaw= 0,fpitch = 0;
 		if (update) {
+			//filter yaw & pitch to smooth the input, fyaw stands for filtered yaw angle
+			convPitch[n]=pitch;
+			convYaw[n]=yaw;
+			n=(n+1)%filterSize;
+			for (int i=0; i<filterSize; i++) {
+				fyaw += convYaw[i];
+				fpitch += convPitch[i];
+			}
+			fyaw /= filterSize;
+			fpitch /= filterSize;
 			uint8_t yawB[4];
 			uint8_t pitchB[4];
-			float2bytes(yaw, yawB);
-			float2bytes(pitch, pitchB);
-			cout << "yaw:"<<yaw<<"; pitch:" << pitch << endl;
+			float2bytes(fyaw, yawB);
+			float2bytes(fpitch, pitchB);
+			cout << "fyaw:"<<fyaw<<"; fpitch:" << fpitch << endl;
 			uint8_t data[8];
 			for (int i=0; i<4; i++)
 			{
@@ -211,7 +237,7 @@ int main()
 			cout << "	write rt byte" << Write << endl;
 		}
 
-		receive(fd);
+//		receive(fd);
 
 //		cout << Move << " " << Yaw << " " << Pitch << endl;
 
@@ -314,7 +340,75 @@ void receive(int fd)
 	}
 }
 
+void SerialSetup(int fd) {
+	if(!isatty(fd)) { cout <<"... error handling ..."<<endl; }
 
+ //
+ // Get the current configuration of the serial interface
+ //
+ if(tcgetattr(fd, &config) < 0) { cout <<"... error handling ..."<<endl; }
+
+ //
+ // Input flags - Turn off input processing
+ //
+ // convert break to null byte, no CR to NL translation,
+ // no NL to CR translation, don't mark parity errors or breaks
+ // no input parity check, don't strip high bit off,
+ // no XON/XOFF software flow control
+ //
+ config.c_iflag &= ~(IGNBRK | BRKINT | ICRNL | INLCR | PARMRK | INPCK | ISTRIP | IXON);
+
+ //
+ // Output flags - Turn off output processing
+ //
+ // no CR to NL translation, no NL to CR-NL translation,
+ // no NL to CR translation, no column 0 CR suppression,
+ // no Ctrl-D suppression, no fill characters, no case mapping,
+ // no local output processing
+ //
+ // config.c_oflag &= ~(OCRNL | ONLCR | ONLRET |
+ //                     ONOCR | ONOEOT| OFILL | OLCUC | OPOST);
+ config.c_oflag = 0;
+
+ //
+ // No line processing
+ //
+ // echo off, echo newline off, canonical mode off, 
+ // extended input processing off, signal chars off
+ //
+ config.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
+
+ //
+ // Turn off character processing
+ //
+ // clear current char size mask, no parity checking,
+ // no output processing, force 8 bit input
+ //
+ config.c_cflag &= ~(CSIZE | PARENB);
+ config.c_cflag |= CS8;
+
+ //
+ // One input byte is enough to return from read()
+ // Inter-character timer off
+ //
+ config.c_cc[VMIN]  = 1;
+ config.c_cc[VTIME] = 0;
+
+ //
+ // Communication speed (simple version, using the predefined
+ // constants)
+ //
+ if(cfsetispeed(&config, B115200) < 0 || cfsetospeed(&config, B115200) < 0) {
+     cout <<"... error handling ..."<<endl;
+ }
+
+ //
+ // Finally, apply the configuration
+ //
+ if(tcsetattr(fd, TCSAFLUSH, &config) < 0) { cout <<"... error handling ..."<<endl; }
+	cout << "serial set up completed" << endl;
+
+}
 /* //can be del
 /*		Send_HEADER(CMD, fd);
 		if (CMD == 1) {
@@ -329,3 +423,5 @@ void receive(int fd)
 			int Write = write(fd, data, 9);
 		}
 */
+	
+	
