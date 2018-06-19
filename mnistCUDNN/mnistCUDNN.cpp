@@ -35,6 +35,7 @@
 #include "gemv.h"
 #include "error_util.h"
 #include "RuneDet.cpp"
+#include <mutex>
 
 #define IMAGE_H 28
 #define IMAGE_W 28
@@ -53,7 +54,9 @@ const char *ip2_bin = "ip2.bin";
 const char *ip2_bias_bin = "ip2.bias.bin";
 char* PATH = "/home/nvidia/Downloads/mnistCUDNN";
 float sudoku_result[9][10];
-int target_digit = 9;
+int target_digit = 1;
+mutex mtx;
+
 /********************************************************
  * Prints the error message, and exits
  * ******************************************************/
@@ -137,6 +140,7 @@ void FreeImageErrorHandler(FREE_IMAGE_FORMAT oFif, const char *zMessage)
 {
     FatalError(zMessage);
 }
+
 template <class value_type>
 void readImage(const char* fname, value_type* imgData_h)
 {
@@ -256,11 +260,13 @@ void saveDeviceVector(int size, value_type* vec_d, int pos)
     Convert<real_type> toReal;
     //std::cout.precision(7);
     //std::cout.setf( std::ios::fixed, std:: ios::floatfield );
+    mtx.lock();
     for (int i = 0; i < size; i++)
     {
         //std::cout << toReal(vec[i]) << " ";
         sudoku_result[pos][i] = toReal(vec[i]);
     }
+    mtx.unlock();
     //std::cout << std::endl;
     delete [] vec;
 }
@@ -904,6 +910,7 @@ int DigitRecognition()
     // default behaviour
     //if (argc == 1 || (argc == 2) && checkCmdLineFlag(argc, (const char **)argv, "device"))
     //{
+    
         // check available memory
         struct cudaDeviceProp prop;
         checkCudaErrors(cudaGetDeviceProperties( &prop, device ));
@@ -917,6 +924,7 @@ int DigitRecognition()
             low_memory = true;
 #endif
         }
+            
         {
             std::cout << "\nTesting single precision\n";
             network_t<float> mnist;
@@ -924,72 +932,89 @@ int DigitRecognition()
             Layer_t<float> conv2(20,50,5,conv2_bin,conv2_bias_bin, PATH);
             Layer_t<float>   ip1(800,500,1,ip1_bin,ip1_bias_bin,PATH);
             Layer_t<float>   ip2(500,10,1,ip2_bin,ip2_bias_bin,PATH);
+            bool newFrame = true;
+            bool finishNine = false;
             while(true){
 				int id[9];
-				//cout << "Result: ";
-				for(int i=0;i<9;i++){
-					id[i] = mnist.classify_exampleMat(sudoku_mat[i], conv1, conv2, ip1, ip2, i);
-					/*for (int j=0; j<10;j++){
-						cout << sudoku_result[i][j] << " ";
-					
-					}
-					cout << endl;*/
-					if(id[i]==0){
-						float acc=0;
-						for (int j =1;j<10;j++){
-							if (sudoku_result[i][j] > acc){
-								acc = sudoku_result[i][j];
-								id[i] = j;
-							}
+				if (foundSudoku){
+					//cout << "Result: ";
+					for(int i=0;i<9;i++){
+						id[i] = mnist.classify_exampleMat(sudoku_mat[i], conv1, conv2, ip1, ip2, i);
+						
+						if(sudoku_result[i][id[i]]<0.40 || (id[i]==1 && sudoku_result[i][1]<0.5)){
+							newFrame = true;
+							break;
 						}
-					}
-					for(int j = i-1;j>=0; j--){
-						if(id[j] == id[i]){
-							int sameId = id[j];
-							if(sudoku_result[i][sameId] < sudoku_result[j][sameId]){
-								float acc = 0;
-								for (int k=1; k<10; k++){
-									if(k==sameId)
-										continue;
-									if (sudoku_result[i][k] > acc){
-										acc = sudoku_result[i][k];
-										id[i] = k;
+						if (newFrame){
+							//substitute zeros
+							if(id[i]==0){
+								float acc=0;
+								for (int j =1;j<10;j++){
+									if (sudoku_result[i][j] > acc){
+										acc = sudoku_result[i][j];
+										id[i] = j;
 									}
 								}
 							}
-							else{
-								float acc = 0;
-								for (int k=1; k<10; k++){
-									if(k==sameId)
-										continue;
-									if (sudoku_result[j][k] > acc){
-										acc = sudoku_result[j][k];
-										id[j] = k;
+							//redundancy ellimination
+							for(int j = i-1;j>=0; j--){
+								if(id[j] == id[i]){
+									int sameId = id[j];
+									if(sudoku_result[i][sameId] < sudoku_result[j][sameId]){
+										float acc = 0;
+										for (int k=1; k<10; k++){
+											if(k==sameId)
+												continue;
+											if (sudoku_result[i][k] > acc){
+												acc = sudoku_result[i][k];
+												id[i] = k;
+											}
+										}
+									}
+									
+									else{
+										float acc = 0;
+										for (int k=1; k<10; k++){
+											if(k==sameId)
+												continue;
+											if (sudoku_result[j][k] > acc){
+												acc = sudoku_result[j][k];
+												id[j] = k;
+											}
+										}
 									}
 								}
 							}
+							cout << id[i] << " ";
+							if (i==8){
+								newFrame = false;
+								finishNine = true;
+							}
 						}
 					}
-					if (id[i] == 9){
-						target_sudoku = i;
-					}
-					cout << id[i] << " ";
+					cout << endl;
 				}
-				
-				cout << endl;
-				
+				if(finishNine){
+						//shooting condition determination
+						for(int i=0;i<9;i++){
+							if (id[i] == target_digit){
+								target_sudoku = i;
+								cout << "FIRE!!!" << endl;
+								finishNine = false;
+							}
+						}
+				}
 			}
             //get_path(image_path, first_image, PATH);
             //i1 = mnist.classify_example(image_path.c_str(), conv1, conv2, ip1, ip2);
             /*
-            get_path(image_path, second_image, argv[0]);
+            get_path(image_path, second_mage, argv[0]);
             i2 = mnist.classify_example(image_path.c_str(), conv1, conv2, ip1, ip2);
             
             get_path(image_path, third_image, argv[0]);
             // New feature in cuDNN v3: FFT for convolution
             mnist.setConvolutionAlgorithm(CUDNN_CONVOLUTION_FWD_ALGO_FFT);
             i3 = mnist.classify_example(image_path.c_str(), conv1, conv2, ip1, ip2);
-
             std::cout << "\nResult of classification: " << i1 << " " << i2 << " " << i3 << std::endl;
             if (i1 != 1 || i2 != 3 || i3 != 5)
             {

@@ -19,20 +19,20 @@ using namespace std;
 
 const double pi = 3.14159265359;
 const bool IsShow = true;
-const bool UsingCam = false;
+const bool UsingCam = false;;
 const double VAngle = 76*pi/180; // radian
-const int VideoWidth = 1280; //1280
-const int VideoHeight = 720; //720
+const int VideoWidth = 1920; //1280
+const int VideoHeight = 1080; //720
 const int ThreNum = 3; //After test, 3 is the optimal for Odroid UX4
 const double FocusPixel = 1.0/tan(VAngle/2)*VideoWidth/2;;
-bool foundSudoku = false;
+
 void ColSeg(Mat&, int, int, int);
 vector<RotatedRect> LocateValidPatch(Mat, int, double, double);
 Point2i LocateArmorCentre(vector<RotatedRect>, double, double);
 double OrieUndist(double CenX, double CenY, double Orie);
 bool checkSudoku(const vector<vector<Point2i>> & contours, vector<RotatedRect> & sudoku_rects);
 void chooseTargetPerspective(const Mat & image, const vector<RotatedRect> & sudoku_rects);
-int target_sudoku = 0;
+int target_sudoku;
 
 struct Point2fWithIdx {
 		cv::Point2f p;
@@ -58,7 +58,7 @@ RotatedRect adjustRRect(const cv::RotatedRect & rect);
 */
 
 
-int Start()
+int main()
 {
 	thread th[ThreNum]; // Create threads
 	cout << "Initilising..." << endl;
@@ -274,7 +274,6 @@ int Start()
 		time_t TPrev = clock();	// In Odroid XU4 a CPU's working time is in nanoseconds. 
 		while(true)
 		{
-			foundSudoku = false;
 			int8_t IsFound = 0;
 			int8_t PitAng, YawAng; 
 			Mat image;
@@ -291,30 +290,89 @@ int Start()
 			//threshold(src, binary, 200, 255, THRESH_BINARY);
 			vector<vector<Point2i>> contours;
 			vector<Vec4i> hierarchy;
-			
 			findContours(binary, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
 			sudoku_rects.clear();
-			
 			if (checkSudoku(contours, sudoku_rects)){
 				chooseTargetPerspective(binary, sudoku_rects);
-				foundSudoku = true;
 			}
-
 			CvScalar colour;
 			colour = CV_RGB(0, 0, 255);
 			
+			
+			
+			line(image, { sudoku_rects[target_sudoku].center.x - 10, sudoku_rects[target_sudoku].center.y }, { sudoku_rects[target_sudoku].center.x + 10, sudoku_rects[target_sudoku].center.y }, colour, 2);
+			line(image, { sudoku_rects[target_sudoku].center.x, sudoku_rects[target_sudoku].center.y - 10 }, { sudoku_rects[target_sudoku].center.x, sudoku_rects[target_sudoku].center.y + 10 }, colour, 2);
+			
+			
+			
+			//qiyue adding
+			//output center
+			for(int i=0; i<9; i++){
+				cout << i << "th sudoku" << endl;
+				cout << sudoku_rects[i].center.x << " " << sudoku_rects[i].center.y << endl;
+				cout << endl;
+			}
+			
+			double xa,xb,xc,xd,xred;
+			xc = sudoku_rects[8].center.x + (112.0/370.0)*(sudoku_rects[7].center.x - sudoku_rects[8].center.x) * ((sudoku_rects[7].center.x - sudoku_rects[8].center.x)/(sudoku_rects[6].center.x - sudoku_rects[7].center.x));
+			xd = sudoku_rects[8].center.x + ((112.0+520.0)/370.0)*(sudoku_rects[7].center.x - sudoku_rects[8].center.x) * ((sudoku_rects[7].center.x - sudoku_rects[8].center.x)/(sudoku_rects[6].center.x - sudoku_rects[7].center.x));
+			xred = (104.0/370.0)*(sudoku_rects[7].center.x - sudoku_rects[8].center.x) * ((sudoku_rects[7].center.x - sudoku_rects[8].center.x)/(sudoku_rects[6].center.x - sudoku_rects[7].center.x));
+			double ya,yb,yc,yd;
+			ya = sudoku_rects[8].center.y - (276.0/220.0)*(sudoku_rects[5].center.y - sudoku_rects[8].center.y) * ((sudoku_rects[5].center.y - sudoku_rects[8].center.y)/(sudoku_rects[2].center.y - sudoku_rects[5].center.y));
+			yb = sudoku_rects[6].center.y - (276.0/220.0)*(sudoku_rects[3].center.y - sudoku_rects[6].center.y) * ((sudoku_rects[3].center.y - sudoku_rects[6].center.y)/(sudoku_rects[0].center.y - sudoku_rects[3].center.y));
+			yc = sudoku_rects[8].center.y - (152.2/220.0)*(sudoku_rects[5].center.y - sudoku_rects[8].center.y) * ((sudoku_rects[5].center.y - sudoku_rects[8].center.y)/(sudoku_rects[2].center.y - sudoku_rects[5].center.y));
+			yd = sudoku_rects[6].center.y - (152.2/220.0)*(sudoku_rects[3].center.y - sudoku_rects[6].center.y) * ((sudoku_rects[3].center.y - sudoku_rects[6].center.y)/(sudoku_rects[0].center.y - sudoku_rects[3].center.y));
+			cout << "xc = " << xc << endl;
+			cout << "xd = " << xd << endl;
+			cout << "ya = " << ya << endl;
+			cout << "yb = " << yb << endl;
+			cout << "yc = " << yc << endl;
+			cout << "yd = " << yd << endl;
+			cout << "xred = " << xred << endl;
+			cout << endl;
+			
+			
+			
+			
+			Mat redBoard,redNum;
+			vector<Mat> redNums(5);
+			Rect rect1(xc,min(ya,yb),xd-xc,max(yc,yd)-min(ya,yb));
+			binary(rect1).copyTo(redBoard);
+			
+			
+			
+			for(int i=0; i<5; i++){
+				Rect rect2(xc+i*(1.0/5.0)*(xd-xc),min(ya,yb),(1.0/5.0)*(xd-xc),max(yc,yd)-min(ya,yb));
+				binary(rect2).copyTo(redNum);
+				imshow("redNum",redNum);
+				waitKey(0);
+			}
+			
+			imshow("redBoard",redBoard);
+			waitKey(1);
+			
+			
+			imshow("binary",binary);
+			waitKey(1);
+			
+			
+			
+			
+			//end of adding
+			
+			
+			
 			if (IsShow)
 			{
-				if (foundSudoku){
-					line(image, { sudoku_rects[target_sudoku].center.x - 10, sudoku_rects[target_sudoku].center.y }, { sudoku_rects[target_sudoku].center.x + 10, sudoku_rects[target_sudoku].center.y }, colour, 2);
-					line(image, { sudoku_rects[target_sudoku].center.x, sudoku_rects[target_sudoku].center.y - 10 }, { sudoku_rects[target_sudoku].center.x, sudoku_rects[target_sudoku].center.y + 10 }, colour, 2);
-				}
 				namedWindow("Contours window");
 				imshow("Contours window", image);
 				waitKey(1);
 			}/*
 			*/
 		}	
+		
+		
+		
 		return 0;
 	}
 /**/
@@ -350,9 +408,7 @@ void chooseTargetPerspective(const Mat & image, const vector<RotatedRect> & sudo
 		//morphologyEx(reversed, processed, MORPH_OPEN, kernel);
 		//imwrite("Sudoku" + to_string(i) + ".pgm", reversed);
 		sudoku_mat[i] = reversed;
-		
 	}
-	
 }
 
 bool checkSudoku(const vector<vector<Point2i>> & contours, vector<RotatedRect> & sudoku_rects){
@@ -380,6 +436,8 @@ bool checkSudoku(const vector<vector<Point2i>> & contours, vector<RotatedRect> &
 
 			sudoku_rects.push_back(rect);
             centers.push_back(rect.center);
+            
+            
             //vector<Point2i> poly;
             //approxPolyDP(contours[i], poly, 20, true);
             ++sudoku;
