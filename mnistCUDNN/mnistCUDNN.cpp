@@ -54,7 +54,7 @@ const char *ip2_bin = "ip2.bin";
 const char *ip2_bias_bin = "ip2.bias.bin";
 char* PATH = "/home/nvidia/Downloads/mnistCUDNN";
 float sudoku_result[9][10];
-int target_digit = 1;
+int target_digit = 9;
 mutex mtx;
 
 /********************************************************
@@ -934,18 +934,23 @@ int DigitRecognition()
             Layer_t<float>   ip2(500,10,1,ip2_bin,ip2_bias_bin,PATH);
             bool newFrame = true;
             bool finishNine = false;
+            bool frameSwitch = true;
             while(true){
 				int id[9];
 				if (foundSudoku){
 					//cout << "Result: ";
 					for(int i=0;i<9;i++){
 						id[i] = mnist.classify_exampleMat(sudoku_mat[i], conv1, conv2, ip1, ip2, i);
-						
-						if(sudoku_result[i][id[i]]<0.40 || (id[i]==1 && sudoku_result[i][1]<0.5)){
+						if(id[i]==1 && sudoku_result[i][1]<0.45){
 							newFrame = true;
+							frameSwitch = true;
 							break;
 						}
-						if (newFrame){
+						if (i==8)
+							frameSwitch = false;
+					}
+					if (newFrame && !frameSwitch){
+						for(int i =0; i<9; i++){
 							//substitute zeros
 							if(id[i]==0){
 								float acc=0;
@@ -956,54 +961,64 @@ int DigitRecognition()
 									}
 								}
 							}
-							//redundancy ellimination
-							for(int j = i-1;j>=0; j--){
-								if(id[j] == id[i]){
-									int sameId = id[j];
-									if(sudoku_result[i][sameId] < sudoku_result[j][sameId]){
-										float acc = 0;
-										for (int k=1; k<10; k++){
-											if(k==sameId)
-												continue;
-											if (sudoku_result[i][k] > acc){
-												acc = sudoku_result[i][k];
-												id[i] = k;
+						}
+						
+						int redundancyCheck[9][10] = {0}; //id, redundancy
+						
+						//redundancy ellimination
+						bool redundancyFlag = true;
+						while(redundancyFlag){
+							redundancyFlag = false;
+							for(int i=0; i<9; i++){
+								for(int j = i-1;j>=0; j--){
+									if(id[j] == id[i]){
+										redundancyFlag = true;
+										cout << endl << "redundancy!" << endl;
+										int sameId = id[j];
+										if(sudoku_result[i][sameId] < sudoku_result[j][sameId]){
+											redundancyCheck[i][sameId] = 1;
+											float acc = 0;
+											for (int k=1; k<10; k++){
+												if(redundancyCheck[i][k] == 1)
+													continue;
+												if (sudoku_result[i][k] > acc){
+													acc = sudoku_result[i][k];
+													id[i] = k;
+												}
 											}
 										}
-									}
-									
-									else{
-										float acc = 0;
-										for (int k=1; k<10; k++){
-											if(k==sameId)
-												continue;
-											if (sudoku_result[j][k] > acc){
-												acc = sudoku_result[j][k];
-												id[j] = k;
+										else{
+											redundancyCheck[j][sameId] = 1;
+											float acc = 0;
+											for (int k=1; k<10; k++){
+												if(redundancyCheck[j][k] == 1)
+													continue;
+												if (sudoku_result[j][k] > acc){
+													acc = sudoku_result[j][k];
+													id[j] = k;
+												}
 											}
 										}
 									}
 								}
 							}
-							cout << id[i] << " ";
-							if (i==8){
-								newFrame = false;
-								finishNine = true;
-							}
+							if(!redundancyFlag)
+								break;
 						}
-					}
-					cout << endl;
-				}
-				if(finishNine){
+						newFrame = false;
 						//shooting condition determination
 						for(int i=0;i<9;i++){
+							cout << id[i] << " ";
 							if (id[i] == target_digit){
 								target_sudoku = i;
-								cout << "FIRE!!!" << endl;
+								cout << "FIRE!!!";
 								finishNine = false;
 							}
 						}
+						cout << endl;
+					}
 				}
+				
 			}
             //get_path(image_path, first_image, PATH);
             //i1 = mnist.classify_example(image_path.c_str(), conv1, conv2, ip1, ip2);
