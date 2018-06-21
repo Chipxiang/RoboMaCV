@@ -19,7 +19,7 @@ using namespace std;
 
 const double pi = 3.14159265359;
 const bool IsShow = true;
-const bool UsingCam = false;;
+const bool UsingCam = true;;
 const double VAngle = 76*pi/180; // radian
 const int VideoWidth = 1920; //1280
 const int VideoHeight = 1080; //720
@@ -345,7 +345,7 @@ int main()
 				Rect rect2(xc+i*(1.0/5.0)*(xd-xc),min(ya,yb),(1.0/5.0)*(xd-xc),max(yc,yd)-min(ya,yb));
 				binary(rect2).copyTo(redNum);
 				imshow("redNum",redNum);
-				waitKey(0);
+				//waitKey(0);
 			}
 			
 			imshow("redBoard",redBoard);

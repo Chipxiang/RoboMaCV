@@ -39,7 +39,6 @@
 
 #define IMAGE_H 28
 #define IMAGE_W 28
-
 const char *first_image = "Sudoku8.pgm";
 const char *second_image = "Sudoku0.pgm";
 const char *third_image = "five_28x28.pgm";
@@ -54,7 +53,7 @@ const char *ip2_bin = "ip2.bin";
 const char *ip2_bias_bin = "ip2.bias.bin";
 char* PATH = "/home/nvidia/Downloads/mnistCUDNN";
 float sudoku_result[9][10];
-int target_digit = 9;
+int target_digit = 1;
 mutex mtx;
 
 /********************************************************
@@ -553,6 +552,7 @@ class network_t
         if (dataType == CUDNN_DATA_HALF) {
             convDataType = CUDNN_DATA_FLOAT; //Math are done in FP32 when tensor are in FP16
         }
+        
         checkCUDNN( cudnnSetConvolutionNdDescriptor(convDesc,
                                                     convDims,
                                                     padA,
@@ -924,6 +924,7 @@ int DigitRecognition()
             low_memory = true;
 #endif
         }
+
             
         {
             std::cout << "\nTesting single precision\n";
@@ -973,7 +974,6 @@ int DigitRecognition()
 								for(int j = i-1;j>=0; j--){
 									if(id[j] == id[i]){
 										redundancyFlag = true;
-										cout << endl << "redundancy!" << endl;
 										int sameId = id[j];
 										if(sudoku_result[i][sameId] < sudoku_result[j][sameId]){
 											redundancyCheck[i][sameId] = 1;
@@ -1011,7 +1011,7 @@ int DigitRecognition()
 							cout << id[i] << " ";
 							if (id[i] == target_digit){
 								target_sudoku = i;
-								cout << "FIRE!!!";
+								//cout << "FIRE!!!";
 								finishNine = false;
 							}
 						}
