@@ -45,30 +45,9 @@ void Send_HEADER(uint8_t CMD, int fd);
 void float2bytes(float fl,uint8_t* byteArray);
 void receive(int fd);
 
-typedef enum
-{
-	RX_SOF,
-	REACH_END,
-	HP_LOW,
-	HP_HIGH,
-	ARMOR,
-}Rx_State_e;
-
-typedef struct
-{
-	uint8_t ReachEnd;
-	uint16_t RemainHP;
-	uint8_t Armor;
-}Rx_Struct_t;
-
-Rx_State_e rx_state;
-Rx_Struct_t rx_struct;
-
 int main()
 {
 //	AutoMove = false;
-//	string path = "~\\Documents\\RoboMa Programmme\\Testing_ver\\ArmourDet_v2.cpp";
-	system("start\"a1\"~\\Documents\\RoboMa Programmme\\Testing_ver\\output2"); 
 
 	//OPEN THE PORT
 	char strSerialPort[255];
@@ -198,7 +177,6 @@ int main()
 		}
 	}
 
-
 	close(fd);
 	cout << "Terminated.\n";
 	return 0;
@@ -240,58 +218,6 @@ void float2bytes(float fl,uint8_t* byteArray)
 
 void receive(int fd)
 {
-	uint8_t rx_buffer[100];
-	int bytesRead = read(fd,rx_buffer,100);
-	for(int i=0;i<bytesRead;i++)
-	{
-		uint8_t inByte = rx_buffer[i];
-		switch(rx_state)
-		{
-			case RX_SOF:
-			{
-				if(inByte==0xCE) rx_state = REACH_END;
-			}break;
-			case REACH_END:
-			{
-				if(inByte>1||inByte<-1)
-				{
-					rx_state = RX_SOF;
-				}
-				else
-				{	
-					rx_struct.ReachEnd = inByte;
-					rx_state = HP_LOW;
-				}
-			}break;
-			case HP_LOW:
-			{
-				rx_struct.RemainHP = inByte;
-				rx_state = HP_HIGH;
-			}break;
-			case HP_HIGH:
-			{
-				rx_struct.RemainHP |= (inByte<<8);
-				rx_state = ARMOR;
-			}break;
-			case ARMOR:
-			{
-				cout << "HP " << rx_struct.RemainHP <<endl;
-				rx_struct.Armor = inByte;
-				rx_state = RX_SOF;
-			}break;
-			default:
-			{
-				rx_state = RX_SOF;
-			}
-		}
-		cout << "rx_state "<<rx_state<<endl;
-		cout << "inByte "<< inByte << endl;
-
-	}
-
-
-
-/*
 	uint8_t read_buffer[100];
 	int bytes_read = read(fd, read_buffer, 100);
 	cout << "	Bytes number: " << bytes_read << endl;
@@ -301,14 +227,9 @@ void receive(int fd)
 		if (read_buffer[i] == 0xCE)
 		{
 			cout << "GetSignal\n";
-			ReachEnd = unsigned(read_buffer[i + 1]);
-			uint16_t remainHP = read_buffer[i+2];
-			remainHP |= (read_buffer[i+3]<<8);
-			int ArmourType = unsigned(read_buffer[i + 4])
+			int blood = read_buffer[i + 1];
 		}
 	}
-	for (int i = 0; i < bytes_read; i++)
-*/
 }
 
 
