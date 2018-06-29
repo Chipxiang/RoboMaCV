@@ -274,10 +274,12 @@ int main()
 		time_t TPrev = clock();	// In Odroid XU4 a CPU's working time is in nanoseconds. 
 		while(true)
 		{
+				
 			int8_t IsFound = 0;
 			int8_t PitAng, YawAng; 
 			Mat image;
 			MyVideo >> image; // Read the next frame
+	
 			if (image.empty()) // Check if read out
 			{
 				cout << "Video has been read out. " << endl;
@@ -292,11 +294,77 @@ int main()
 			vector<Vec4i> hierarchy;
 			findContours(binary, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
 			sudoku_rects.clear();
+			
 			if (checkSudoku(contours, sudoku_rects)){
 				chooseTargetPerspective(binary, sudoku_rects);
 			}
 			CvScalar colour;
 			colour = CV_RGB(0, 0, 255);
+			
+			
+			//qiyue adding
+			cout << "testing on qiyue section" << endl;
+			//cout << "testing on foundSudoku: " << foundSudoku << endl;
+			//output center
+			//if (foundSudoku){
+				for(int i=0; i<9; i++){
+					cout << i << "th sudoku" << endl;
+					cout << sudoku_rects[i].center.x << " " << sudoku_rects[i].center.y << endl;
+					cout << endl;
+				}
+				
+				double xa,xb,xc,xd,xred;
+				xc = sudoku_rects[8].center.x + (112.0/370.0)*(sudoku_rects[7].center.x - sudoku_rects[8].center.x) * ((sudoku_rects[7].center.x - sudoku_rects[8].center.x)/(sudoku_rects[6].center.x - sudoku_rects[7].center.x));
+				xd = sudoku_rects[8].center.x + ((112.0+520.0)/370.0)*(sudoku_rects[7].center.x - sudoku_rects[8].center.x) * ((sudoku_rects[7].center.x - sudoku_rects[8].center.x)/(sudoku_rects[6].center.x - sudoku_rects[7].center.x));
+				xred = (104.0/370.0)*(sudoku_rects[7].center.x - sudoku_rects[8].center.x) * ((sudoku_rects[7].center.x - sudoku_rects[8].center.x)/(sudoku_rects[6].center.x - sudoku_rects[7].center.x));
+				double ya,yb,yc,yd;
+				ya = sudoku_rects[8].center.y - (276.0/220.0)*(sudoku_rects[5].center.y - sudoku_rects[8].center.y) * ((sudoku_rects[5].center.y - sudoku_rects[8].center.y)/(sudoku_rects[2].center.y - sudoku_rects[5].center.y));
+				yb = sudoku_rects[6].center.y - (276.0/220.0)*(sudoku_rects[3].center.y - sudoku_rects[6].center.y) * ((sudoku_rects[3].center.y - sudoku_rects[6].center.y)/(sudoku_rects[0].center.y - sudoku_rects[3].center.y));
+				yc = sudoku_rects[8].center.y - (152.2/220.0)*(sudoku_rects[5].center.y - sudoku_rects[8].center.y) * ((sudoku_rects[5].center.y - sudoku_rects[8].center.y)/(sudoku_rects[2].center.y - sudoku_rects[5].center.y));
+				yd = sudoku_rects[6].center.y - (152.2/220.0)*(sudoku_rects[3].center.y - sudoku_rects[6].center.y) * ((sudoku_rects[3].center.y - sudoku_rects[6].center.y)/(sudoku_rects[0].center.y - sudoku_rects[3].center.y));
+				cout << "xc = " << xc << endl;
+				cout << "xd = " << xd << endl;
+				cout << "ya = " << ya << endl;
+				cout << "yb = " << yb << endl;
+				cout << "yc = " << yc << endl;
+				cout << "yd = " << yd << endl;
+				cout << "xred = " << xred << endl;
+				cout << endl;
+				
+				
+				
+				
+				Mat redBoard,redNum;
+				vector<Mat> redNums(5);
+				Rect rect1(xc,min(ya,yb),xd-xc,max(yc,yd)-min(ya,yb));
+				binary(rect1).copyTo(redBoard);
+				
+				
+				
+				for(int i=0; i<5; i++){
+					Rect rect2(xc+i*(1.0/5.0)*(xd-xc),min(ya,yb),(1.0/5.0)*(xd-xc),max(yc,yd)-min(ya,yb));
+					binary(rect2).copyTo(redNum);
+					imshow("redNum",redNum);
+					waitKey(1);
+				}
+				
+				imshow("redBoard",redBoard);
+				waitKey(1);
+				
+				
+				imshow("binary",binary);
+				waitKey(1);
+				
+				
+				
+				
+				//end of adding
+			//}
+			
+			
+			
+			
+			
 			
 			
 			
@@ -305,60 +373,7 @@ int main()
 			
 			
 			
-			//qiyue adding
-			//output center
-			for(int i=0; i<9; i++){
-				cout << i << "th sudoku" << endl;
-				cout << sudoku_rects[i].center.x << " " << sudoku_rects[i].center.y << endl;
-				cout << endl;
-			}
 			
-			double xa,xb,xc,xd,xred;
-			xc = sudoku_rects[8].center.x + (112.0/370.0)*(sudoku_rects[7].center.x - sudoku_rects[8].center.x) * ((sudoku_rects[7].center.x - sudoku_rects[8].center.x)/(sudoku_rects[6].center.x - sudoku_rects[7].center.x));
-			xd = sudoku_rects[8].center.x + ((112.0+520.0)/370.0)*(sudoku_rects[7].center.x - sudoku_rects[8].center.x) * ((sudoku_rects[7].center.x - sudoku_rects[8].center.x)/(sudoku_rects[6].center.x - sudoku_rects[7].center.x));
-			xred = (104.0/370.0)*(sudoku_rects[7].center.x - sudoku_rects[8].center.x) * ((sudoku_rects[7].center.x - sudoku_rects[8].center.x)/(sudoku_rects[6].center.x - sudoku_rects[7].center.x));
-			double ya,yb,yc,yd;
-			ya = sudoku_rects[8].center.y - (276.0/220.0)*(sudoku_rects[5].center.y - sudoku_rects[8].center.y) * ((sudoku_rects[5].center.y - sudoku_rects[8].center.y)/(sudoku_rects[2].center.y - sudoku_rects[5].center.y));
-			yb = sudoku_rects[6].center.y - (276.0/220.0)*(sudoku_rects[3].center.y - sudoku_rects[6].center.y) * ((sudoku_rects[3].center.y - sudoku_rects[6].center.y)/(sudoku_rects[0].center.y - sudoku_rects[3].center.y));
-			yc = sudoku_rects[8].center.y - (152.2/220.0)*(sudoku_rects[5].center.y - sudoku_rects[8].center.y) * ((sudoku_rects[5].center.y - sudoku_rects[8].center.y)/(sudoku_rects[2].center.y - sudoku_rects[5].center.y));
-			yd = sudoku_rects[6].center.y - (152.2/220.0)*(sudoku_rects[3].center.y - sudoku_rects[6].center.y) * ((sudoku_rects[3].center.y - sudoku_rects[6].center.y)/(sudoku_rects[0].center.y - sudoku_rects[3].center.y));
-			cout << "xc = " << xc << endl;
-			cout << "xd = " << xd << endl;
-			cout << "ya = " << ya << endl;
-			cout << "yb = " << yb << endl;
-			cout << "yc = " << yc << endl;
-			cout << "yd = " << yd << endl;
-			cout << "xred = " << xred << endl;
-			cout << endl;
-			
-			
-			
-			
-			Mat redBoard,redNum;
-			vector<Mat> redNums(5);
-			Rect rect1(xc,min(ya,yb),xd-xc,max(yc,yd)-min(ya,yb));
-			binary(rect1).copyTo(redBoard);
-			
-			
-			
-			for(int i=0; i<5; i++){
-				Rect rect2(xc+i*(1.0/5.0)*(xd-xc),min(ya,yb),(1.0/5.0)*(xd-xc),max(yc,yd)-min(ya,yb));
-				binary(rect2).copyTo(redNum);
-				imshow("redNum",redNum);
-				//waitKey(0);
-			}
-			
-			imshow("redBoard",redBoard);
-			waitKey(1);
-			
-			
-			imshow("binary",binary);
-			waitKey(1);
-			
-			
-			
-			
-			//end of adding
 			
 			
 			

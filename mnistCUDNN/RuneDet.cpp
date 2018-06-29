@@ -19,32 +19,46 @@ using namespace std;
 
 const double pi = 3.14159265359;
 const bool IsShow = true;
-const bool UsingCam = true;
+const bool UsingCam = false;
 const double VAngle = 76*pi/180; // radian
-const int VideoWidth = 1280; //1280
-const int VideoHeight = 720; //720
+const int VideoWidth = 640; //1280
+const int VideoHeight = 480; //720
 const int ThreNum = 3; //After test, 3 is the optimal for Odroid UX4
 const double FocusPixel = 1.0/tan(VAngle/2)*VideoWidth/2;;
 bool foundSudoku = false;
+bool foundLED = false;
 void ColSeg(Mat&, int, int, int);
 vector<RotatedRect> LocateValidPatch(Mat, int, double, double);
 Point2i LocateArmorCentre(vector<RotatedRect>, double, double);
 double OrieUndist(double CenX, double CenY, double Orie);
 bool checkSudoku(const vector<vector<Point2i>> & contours, vector<RotatedRect> & sudoku_rects);
 void chooseTargetPerspective(const Mat & image, const vector<RotatedRect> & sudoku_rects);
+double self_max(double a, double b, double c);
+double self_min(double a, double b, double c);
 int target_sudoku = 0;
-
+int ledDigits[5];
+Mat redNums[5], redBoard;
 struct Point2fWithIdx {
 		cv::Point2f p;
 		size_t idx;
 		Point2fWithIdx(const cv::Point2f _p, size_t _idx) :p(_p), idx(_idx){}
+};
+struct contour_sorter // 'less' for contours
+{
+    bool operator ()( const vector<Point>& a, const vector<Point> & b )
+    {
+        Rect ra(boundingRect(a));
+        Rect rb(boundingRect(b));
+        // scale factor for y should be larger than img.width
+        return (ra.x < rb.x);
+    }
 };
 vector<cv::RotatedRect> sudoku_rects;
 Mat sudoku_mat[9];
 int sudoku_width = 127;
 int sudoku_height = 71;
 RotatedRect adjustRRect(const cv::RotatedRect & rect);
-/* Camera settings:
+/* Armour Camera settings:
    Brightness -64
    Contrast 0
    Saturation 128
@@ -55,6 +69,19 @@ RotatedRect adjustRRect(const cv::RotatedRect & rect);
    Sharpness 0
    Backlight Compensation
    Exposure 16
+*/
+
+/* Rune Camera settings:
+   Brightness 0
+   Contrast 32
+   Saturation 60
+   Hue 0
+   Gamma 100
+   Gain 0
+   White Balance Temperature 4600
+   Sharpness 2
+   Backlight Compensation 1
+   Exposure Aperture Priority Mode(157)
 */
 
 
@@ -145,6 +172,7 @@ int Start()
 	cout << "Rune Mode(0) or Armour Mode (1)?";
 	//cin >> isArm;
 	if (isArm){
+					
 		cout << "Blue 1 or red 0, make your choice: ";
 		bool IsBlue; 
 		cin >> IsBlue; 
@@ -263,15 +291,21 @@ int Start()
 		
 		// cout << "Lasting time: " << LastTime << endl;
 		//close(fd); // Close serial port. 
+
 		return 0;
 	}
 	else{
-		cout << "Flame(0) or Written (1)" << endl;
+		cout << "***testing on qiyue section" << endl;
+		cout << "Flame(0) or Written (1) ***" << "###" << endl;
 		bool isWritten = true;
 		//cin >> isWritten;
 		cout << "Process Starts" << endl;
 		int count = 0;
 		time_t TPrev = clock();	// In Odroid XU4 a CPU's working time is in nanoseconds. 
+		
+					cout << "testing on qiyue section" << endl;
+
+		
 		while(true)
 		{
 			foundSudoku = false;
@@ -287,7 +321,7 @@ int Start()
 			Mat src;
 			cvtColor(image, src, CV_BGR2GRAY);
 			Mat binary;
-			threshold(src, binary, 150, 255, THRESH_BINARY);
+			threshold(src, binary, 160, 255, THRESH_BINARY);
 			//threshold(src, binary, 200, 255, THRESH_BINARY);
 			vector<vector<Point2i>> contours;
 			vector<Vec4i> hierarchy;
@@ -300,67 +334,285 @@ int Start()
 				foundSudoku = true;
 			}
 			
-			//qiyue adding
-			//output center
-			if (foundSudoku){
-				for(int i=0; i<9; i++){
-					cout << i << "th sudoku" << endl;
-					cout << sudoku_rects[i].center.x << " " << sudoku_rects[i].center.y << endl;
-					cout << endl;
-				}
-				
-				double xa,xb,xc,xd,xred;
-				xc = sudoku_rects[8].center.x + (112.0/370.0)*(sudoku_rects[7].center.x - sudoku_rects[8].center.x) * ((sudoku_rects[7].center.x - sudoku_rects[8].center.x)/(sudoku_rects[6].center.x - sudoku_rects[7].center.x));
-				xd = sudoku_rects[8].center.x + ((112.0+520.0)/370.0)*(sudoku_rects[7].center.x - sudoku_rects[8].center.x) * ((sudoku_rects[7].center.x - sudoku_rects[8].center.x)/(sudoku_rects[6].center.x - sudoku_rects[7].center.x));
-				xred = (104.0/370.0)*(sudoku_rects[7].center.x - sudoku_rects[8].center.x) * ((sudoku_rects[7].center.x - sudoku_rects[8].center.x)/(sudoku_rects[6].center.x - sudoku_rects[7].center.x));
-				double ya,yb,yc,yd;
-				ya = sudoku_rects[8].center.y - (276.0/220.0)*(sudoku_rects[5].center.y - sudoku_rects[8].center.y) * ((sudoku_rects[5].center.y - sudoku_rects[8].center.y)/(sudoku_rects[2].center.y - sudoku_rects[5].center.y));
-				yb = sudoku_rects[6].center.y - (276.0/220.0)*(sudoku_rects[3].center.y - sudoku_rects[6].center.y) * ((sudoku_rects[3].center.y - sudoku_rects[6].center.y)/(sudoku_rects[0].center.y - sudoku_rects[3].center.y));
-				yc = sudoku_rects[8].center.y - (152.2/220.0)*(sudoku_rects[5].center.y - sudoku_rects[8].center.y) * ((sudoku_rects[5].center.y - sudoku_rects[8].center.y)/(sudoku_rects[2].center.y - sudoku_rects[5].center.y));
-				yd = sudoku_rects[6].center.y - (152.2/220.0)*(sudoku_rects[3].center.y - sudoku_rects[6].center.y) * ((sudoku_rects[3].center.y - sudoku_rects[6].center.y)/(sudoku_rects[0].center.y - sudoku_rects[3].center.y));
-				cout << "xc = " << xc << endl;
-				cout << "xd = " << xd << endl;
-				cout << "ya = " << ya << endl;
-				cout << "yb = " << yb << endl;
-				cout << "yc = " << yc << endl;
-				cout << "yd = " << yd << endl;
-				cout << "xred = " << xred << endl;
-				cout << endl;
-				
-				
-				
-				
-				Mat redBoard,redNum;
-				vector<Mat> redNums(5);
-				Rect rect1(xc,min(ya,yb),xd-xc,max(yc,yd)-min(ya,yb));
-				binary(rect1).copyTo(redBoard);
-				
-				
-				
-				for(int i=0; i<5; i++){
-					Rect rect2(xc+i*(1.0/5.0)*(xd-xc),min(ya,yb),(1.0/5.0)*(xd-xc),max(yc,yd)-min(ya,yb));
-					binary(rect2).copyTo(redNum);
-					imshow("redNum",redNum);
-					waitKey(1);
-				}
-				
-				imshow("redBoard",redBoard);
-				waitKey(1);
-				
-				
-				imshow("binary",binary);
-				waitKey(1);
-				
-				
-				
-				
-				//end of adding
-			}
+			
 			
 			
 			
 			CvScalar colour;
 			colour = CV_RGB(0, 0, 255);
+			
+			
+			
+			//qiyue adding
+			//cout << "testing on qiyue section" << endl;
+			//cout << "testing on foundSudoku: " << foundSudoku << endl;
+			//output center
+			if (foundSudoku){
+				/*for(int i=0; i<9; i++){
+					cout << i << "th sudoku" << endl;
+					cout << sudoku_rects[i].center.x << " " << sudoku_rects[i].center.y << endl;
+					cout << endl;
+				}*/
+				
+				double xa,xb,xc,xd,xred;
+				xc = sudoku_rects[8].center.x + (112.0/370.0)*(sudoku_rects[7].center.x - sudoku_rects[8].center.x) * ((sudoku_rects[7].center.x - sudoku_rects[8].center.x)/(sudoku_rects[6].center.x - sudoku_rects[7].center.x));
+				xd = sudoku_rects[8].center.x + ((112.0+520.0)/370.0)*(sudoku_rects[7].center.x - sudoku_rects[8].center.x) * ((sudoku_rects[7].center.x - sudoku_rects[8].center.x)/(sudoku_rects[6].center.x - sudoku_rects[7].center.x));
+				//xred = (104.0/370.0)*(sudoku_rects[7].center.x - sudoku_rects[8].center.x) * ((sudoku_rects[7].center.x - sudoku_rects[8].center.x)/(sudoku_rects[6].center.x - sudoku_rects[7].center.x));
+				double ya,yb,yc,yd;
+				ya = sudoku_rects[8].center.y - (276.0/220.0)*(sudoku_rects[5].center.y - sudoku_rects[8].center.y) * ((sudoku_rects[5].center.y - sudoku_rects[8].center.y)/(sudoku_rects[2].center.y - sudoku_rects[5].center.y));
+				yb = sudoku_rects[6].center.y - (276.0/220.0)*(sudoku_rects[3].center.y - sudoku_rects[6].center.y) * ((sudoku_rects[3].center.y - sudoku_rects[6].center.y)/(sudoku_rects[0].center.y - sudoku_rects[3].center.y));
+				yc = sudoku_rects[8].center.y - (152.2/220.0)*(sudoku_rects[5].center.y - sudoku_rects[8].center.y) * ((sudoku_rects[5].center.y - sudoku_rects[8].center.y)/(sudoku_rects[2].center.y - sudoku_rects[5].center.y));
+				yd = sudoku_rects[6].center.y - (152.2/220.0)*(sudoku_rects[3].center.y - sudoku_rects[6].center.y) * ((sudoku_rects[3].center.y - sudoku_rects[6].center.y)/(sudoku_rects[0].center.y - sudoku_rects[3].center.y));
+				//cout << "xc = " << xc << endl;
+				//cout << "xd = " << xd << endl;
+				//cout << "ya = " << ya << endl;
+				//cout << "yb = " << yb << endl;
+				//cout << "yc = " << yc << endl;
+				//cout << "yd = " << yd << endl;
+				//cout << "xred = " << xred << endl;
+				//cout << endl;
+
+				xc = xc * 0.98;
+				ya = ya * 0.98;
+				yb = yb * 0.98;
+				xd = xd * 1.02;
+				yc = yc * 1.02;
+				yd = yd * 1.02;
+				
+				if (ya<0 || ya > self_max(sudoku_rects[8].center.y, sudoku_rects[7].center.y, sudoku_rects[6].center.y) ||
+					yb<0 || yb > self_max(sudoku_rects[8].center.y, sudoku_rects[7].center.y, sudoku_rects[6].center.y) ||
+					yc<0 || yc > self_max(sudoku_rects[8].center.y, sudoku_rects[7].center.y, sudoku_rects[6].center.y) ||
+					yd<0 || yd > self_max(sudoku_rects[8].center.y, sudoku_rects[7].center.y, sudoku_rects[6].center.y) ||
+					xc<0 || xc > self_min(sudoku_rects[1].center.x, sudoku_rects[4].center.x, sudoku_rects[7].center.x) ||
+					xd<0 || xd > self_min(sudoku_rects[0].center.x, sudoku_rects[3].center.x, sudoku_rects[6].center.x) ){
+						foundLED = false;
+						//cout << "sudoku position wiered" << endl;
+					}
+				else{
+					foundLED = true;
+					Mat redNum;
+					Mat redRaw;
+					Rect rect1(xc,min(ya,yb),xd-xc,max(yc,yd)-min(ya,yb));
+					binary(rect1).copyTo(redRaw);
+					//threshold(redBoard, redRev, 150, 255, THRESH_BINARY_INV);
+
+					
+					
+					for(int i=0; i<5; i++){
+						Rect rect2(xc+i*(1.0/5.0)*(xd-xc),min(ya,yb),(1.0/5.0)*(xd-xc),max(yc,yd)-min(ya,yb));
+						binary(rect2).copyTo(redNum);
+						
+						redNums[i] = redNum;
+						Mat resized, reversed;
+						resize(redNums[i], resized, Size(28,28),INTER_CUBIC);
+						threshold(resized, reversed, 150, 255, THRESH_BINARY_INV);
+						redNums[i] = reversed;
+						//cout << reversed << endl;
+						imwrite("LED" + to_string(i) + ".jpg", reversed);
+
+						waitKey(1);
+					}
+					dilate(redRaw, redBoard,Mat(), Point(-1, -1), 2, 1, 1);
+					//imshow("Board",redBoard);
+					vector<vector<Point>> contours;
+					findContours(redBoard, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+					vector<vector<Point>> digitCnt;
+					Rect ledRect;
+					sort(contours.begin(), contours.end(), contour_sorter());
+					int j=0;
+					for (int i = 0; i < contours.size(); i++){
+						if(contours[i].size() > 5){
+							ledRect = boundingRect(contours[i]);
+							//rectangle(redBoard, ledRect, colour);
+							digitCnt.push_back(contours[i]);
+							//cout << contours[i] << endl;
+							j++;
+							if (j>5){
+								foundLED = false;
+								break;
+							}
+						}
+					}
+					if (j!=5){
+						foundLED = false;
+					}
+					if(foundLED){
+						for (int i=0; i<5; i++){
+							
+							ledRect = boundingRect(digitCnt[i]);
+							//if 1
+							if(ledRect.height *1.0 / (ledRect.width*1.0) > 2){
+								ledDigits[i] = 1;
+							}
+							//other digits
+							else{
+								Point2f pts[4];
+								int on[7] = {0};
+								Mat roi0 = redBoard(ledRect);
+								vector<Point> shape;
+								uchar* p;
+								//cout << roi0 << endl << endl;
+								bool f = false;
+								for (int i = 0; i < roi0.rows; ++i) // Careful it's <= to include EndRow
+								{
+									p = roi0.ptr<uchar>(i);
+									for (int j = 0; j < roi0.cols; ++j)
+									{
+										if(p[j] != 0){
+											pts[0] = Point(j-1,i);
+											f = true;
+											break;
+										}
+									}
+									if(f) break;
+								}
+								//shape.push_back(Point(0, roi0.rows-1));
+								
+								for (int i = roi0.rows-1; i >=0; --i)
+								{
+									p = roi0.ptr<uchar>(i);
+									for (int j = roi0.cols-1; j >=0 ; --j)
+									{
+										if(p[j] != 0){
+											pts[2] = Point(j+1,i);
+											f = true;
+											break;
+										}
+									}
+									if(f) break;
+								}
+								
+								for (int i = 0; i < roi0.rows; ++i)
+								{
+									p = roi0.ptr<uchar>(i);
+									for (int j = roi0.cols-1; j >=0 ; --j)
+									{
+										if(p[j] != 0){
+											pts[3] = Point(j+1,i);
+											f = true;
+											break;
+										}
+									}
+									if(f) break;
+								}
+								
+								 // Assemble a rotated rectangle out of that info
+								//RotatedRect box = minAreaRect(Mat(shape));
+								//std::cout << "Rotated box set to (" << box.boundingRect().x << "," << box.boundingRect().y << ") " << box.size.width << "x" << box.size.height << std::endl;
+								//rectangle(roi0, box.boundingRect(), colour);
+								
+
+								//pts[0] = Point(5, 0);
+								pts[1] = Point(0, roi0.rows-1);
+								//pts[2] = Point(roi0.cols-1, roi0.rows-7);
+								pts[3] = Point(roi0.cols-1, 0);
+
+								// Does the order of the points matter? I assume they do NOT.
+								// But if it does, is there an easy way to identify and order 
+								// them as topLeft, topRight, bottomRight, bottomLeft?
+
+								cv::Point2f src_vertices[3];
+								src_vertices[0] = pts[0];
+								src_vertices[1] = pts[2];
+								src_vertices[2] = pts[3];
+								//src_vertices[3] = not_a_rect_shape[3];
+
+								Point2f dst_vertices[3];
+								dst_vertices[0] = Point(0, 0);
+								dst_vertices[1] = Point(roi0.cols-1, roi0.rows-1);
+								dst_vertices[2] = Point(roi0.cols-1, 0);
+							  
+								Mat warpAffineMatrix = getAffineTransform(src_vertices, dst_vertices);
+
+								cv::Mat rotated;
+								cv::Size size(ledRect.width, ledRect.height);
+								warpAffine(roi0, rotated, warpAffineMatrix, size, INTER_LINEAR, BORDER_CONSTANT);
+
+								//imwrite("rotated.jpg", rotated);
+								
+								Mat roi = rotated;
+								Size s = roi.size();
+								int roiH = s.height;
+								int roiW = s.width;
+								int dW = roiW*0.25;
+								int dH = roiH*0.20;
+								int dHC = roiH * 0.1;
+								int segments[7][4] = 
+								{
+									{dW,0,ledRect.width-dW,dH}, //top
+									{0,dH, dW, ledRect.height/2-dHC}, //top-left
+									{ledRect.width - dW, dH, ledRect.width, ledRect.height/2-dHC}, //top-right
+									{dW, ledRect.height/2 -dHC, ledRect.width-dW, ledRect.height/2 + dHC}, //center
+									{0, ledRect.height/2+dHC, dW, ledRect.height-dH}, //bottom-left
+									{ledRect.width - dW, ledRect.height/2+dHC, ledRect.width, ledRect.height-dH}, //bottom-right
+									{dW, ledRect.height - dH, ledRect.width-dW, ledRect.height}
+								};
+								
+								Mat test = Mat::zeros(rotated.size(), CV_64FC1);
+
+								for(int j = 0; j<7; j++){
+									Rect segRect = Rect(segments[j][0], segments[j][1], (segments[j][2] - segments[j][0]), (segments[j][3] - segments[j][1]));
+									
+									Mat segRoi = roi(segRect);
+									float total = countNonZero(segRoi);
+									float area = (segments[j][2] - segments[j][0])* (segments[j][3] - segments[j][1]);
+									if(total*1.0/(area*1.0)>0.8){
+										on[j] = 1;
+										rectangle(test, segRect, colour);
+									}else{
+										on[j]=0;
+									}
+									//imshow("1", test);
+									//imshow("2", rotated);
+								}
+								
+								int DIGITS_LOOKUP[9][7] = {
+									{0, 0, 1, 0, 0, 1, 0},
+									{1, 0, 1, 1, 1, 0, 1},
+									{1, 0, 1, 1, 0, 1, 1},
+									{0, 1, 1, 1, 0, 1, 0},
+									{1, 1, 0, 1, 0, 1, 1},
+									{1, 1, 0, 1, 1, 1, 1},
+									{1, 0, 1, 0, 0, 1, 0},
+									{1, 1, 1, 1, 1, 1, 1},
+									{1, 1, 1, 1, 0, 1, 1}
+								};
+								int y = 0;
+								bool flag = false;
+								for (y = 0; y < 9; y++){
+									for(int x = 0; x<7; x++){
+										if(DIGITS_LOOKUP[y][x] != on[x])
+											break;
+										if(DIGITS_LOOKUP[y][x] == on[x] && x ==6)
+											flag = true;
+									}
+									if (flag){
+										break;
+									}
+								}
+								
+								ledDigits[i] = y+1;
+								
+								//cout << ledRect.x << " " << ledRect.y << " " << ledRect.width << " " << ledRect.height << " " << endl << endl;
+							}
+							//cout << ledDigits[i] << " ";
+							
+						}
+						//cout << endl;
+					}
+					
+					//imshow("redBoard",redBoard);
+
+					//imwrite("Board.jpg", redRev);
+					waitKey(1);
+					
+					
+					//imshow("binary",binary);
+					//waitKey(1);
+				}
+				//end of adding
+			}
+			
 			
 			if (IsShow)
 			{
@@ -368,6 +620,11 @@ int Start()
 					line(image, { sudoku_rects[target_sudoku].center.x - 10, sudoku_rects[target_sudoku].center.y }, { sudoku_rects[target_sudoku].center.x + 10, sudoku_rects[target_sudoku].center.y }, colour, 2);
 					line(image, { sudoku_rects[target_sudoku].center.x, sudoku_rects[target_sudoku].center.y - 10 }, { sudoku_rects[target_sudoku].center.x, sudoku_rects[target_sudoku].center.y + 10 }, colour, 2);
 				}
+				string ledString = "";
+				for(int i=0; i< 5; i++){
+					ledString += to_string(ledDigits[i]);
+				}
+				putText(image,ledString, Point(30,30), FONT_HERSHEY_SIMPLEX, 1, cvScalar(200,200,250), 1, CV_AA);
 				namedWindow("Contours window");
 				imshow("Contours window", image);
 				waitKey(1);
@@ -687,3 +944,43 @@ double OrieUndist(double CenX, double CenY, double Orie)
 	}
 	return OrieCali;
 }
+
+double self_max(double a, double b, double c){
+	if (a >= b){
+		if (a >= c){
+			return a;
+		}
+		else{
+			return c;
+		}
+	}
+	else{
+		if (b >= c){
+			return b;
+		}
+		else {
+			return c;
+		}
+	}
+}
+
+double self_min(double a, double b, double c){
+	if (a <= b){
+		if (a <= c){
+			return a;
+		}
+		else{
+			return c;
+		}
+	}
+	else{
+		if (b <= c){
+			return b;
+		}
+		else {
+			return c;
+		}
+	}
+}
+
+
