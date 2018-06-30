@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include <string.h>
 #include <signal.h>
+#include "ArmourDetect.h"
 
 using namespace std;
 using namespace cv;
@@ -21,6 +22,10 @@ void myFunc(int sig)
 	flag = 1;
 }
 
+bool UsingCam = true;
+
+float yaw=0, pitch=0;
+float last_yaw, last_pitch;
 const uint8_t HEADER = 0xCE; //write
 uint8_t CMD; //send move=1; send gimble=2; set by the condition; write;
 uint8_t DATA_LENGTH; //the sent data's length; write
@@ -32,9 +37,8 @@ bool YawReach;//reach 1; read
 bool PitchReach;// read
 
 bool AutoMove = false;//set by ArmourDet.cpp. If not detected armour, set to 1; otherwise, set to 0;
-bool AutoRotate = true;//set by ArmourDet.cpp
-uint8_t Shoot = 0; //set by ArmourDet.cpp; Shoot=1: shoot; Shoot=0: not shoot; write;
-
+bool AutoRotate = false;//set by ArmourDet.cpp
+bool IsFound;
 uint8_t Move = 0; //1:left_slow; 2:left_fast; 3:right_slow; 4:right_fast; 0:stop; write;
 float Yaw = 0;//-150 to 120 (0 to 60 for temprary)
 float Pitch = -30;//-30 to 0
@@ -64,11 +68,12 @@ typedef struct
 Rx_State_e rx_state;
 Rx_Struct_t rx_struct;
 
+bool update(float yaw, float pitch) {
+	return (fabs(yaw-last_yaw)>0.6 || fabs(pitch-last_pitch)>0.3);
+}
+
 int main()
 {
-//	string path = "~\\Documents\\RoboMa Programmme\\Testing_ver\\ArmourDet_v2.cpp";
-//	system("start\"a1\"~\\Documents\\RoboMa Programmme\\Testing_ver\\output2"); 
-
 	//OPEN THE PORT
 	char strSerialPort[255];
 	int fd;
@@ -87,6 +92,7 @@ int main()
 		cout << "Port " << strSerialPort << " successfully opened!\n";
 	}
 
+	CamInitial();
 	time_t last_time_Mv;
 	time_t last_time_Rt;
 	time(&last_time_Mv);
@@ -94,8 +100,45 @@ int main()
 
 	while (true)
 	{
+		last_yaw = yaw;
+		last_pitch = pitch;
 		time_t this_time;
 		time(&this_time); //delay
+		
+		Detect();
+		if (update) {
+			uint8_t yawB[4];
+			uint8_t pitchB[4];
+			float2bytes(yaw, yawB);
+			float2bytes(pitch, pitchB);
+			cout << "yaw:"<<yaw<<"; pitch:" << pitch << endl;
+			uint8_t data[8];
+			for (int i=0; i<4; i++)
+			{
+				data[i]=yawB[i];
+				data[i+4]=pitchB[i];
+			}
+			CMD=2;
+			Send_HEADER(CMD, fd);
+			int Write = write(fd, data, 8);
+			cout << "	write rt byte" << Write << endl;
+		}
+
+		if(IsFound==1 && (fabs(yaw)<=1 && fabs(pitch) <=0.5))
+		{
+			uint8_t data[] = {1};
+			CMD = 3;
+			Send_HEADER(CMD, fd);
+			int Write = write(fd, data, 1);
+			cout << "	write shoot byte" << Write << endl;			
+		}
+		else {
+			uint8_t data[] = {0};
+			CMD = 3;
+			Send_HEADER(CMD, fd);
+			int Write = write(fd, data, 1);
+			cout << "	write shoot byte" << Write << endl;
+		}
 
 		if (AutoMove)
 		{
@@ -115,14 +158,15 @@ int main()
 				time(&last_time_Mv); //delay
 			}
 
-/*			
-			if (Hit!=0 && Move<2) {
-				uint8_t seg=Segment;
-				Move = (Move+2)%4;
+			
+			if (Hit != 0 && Move < 2)
+			{
+				uint8_t seg = Segment;
+				Move = (Move + 2) % 4;
 				//move for one seg
 //				while(Segment==seg) {;}
 			}
-*/
+
 			uint8_t data[]={Move};
 			CMD=1;
 			Send_HEADER(CMD, fd);
@@ -167,15 +211,9 @@ int main()
 			cout << "	write rt byte" << Write << endl;
 		}
 
-		if(Shoot==1)
-		{
-			uint8_t data[] = {Shoot};
-			CMD = 3;
-			Send_HEADER(CMD, fd);
-			int Write = write(fd, data, 1);
-			cout << "	write shoot byte" << Write << endl;
-		}
-//		receive(fd);
+		receive(fd);
+
+//		cout << Move << " " << Yaw << " " << Pitch << endl;
 
 		if(flag)
 		{
@@ -185,7 +223,7 @@ int main()
 		}
 	}
 
-
+//	DetectThread.join();
 	close(fd);
 	cout << "Terminated.\n";
 	return 0;
@@ -236,11 +274,11 @@ void receive(int fd)
 		{
 			case RX_SOF:
 			{
-				if(inByte==0xCE) rx_state = REACH_END;
+				if(inByte == 0xCE) rx_state = REACH_END;
 			}break;
 			case REACH_END:
 			{
-				if(inByte>1||inByte<-1)
+				if(inByte > 1 || inByte < -1)
 				{
 					rx_state = RX_SOF;
 				}
@@ -257,12 +295,12 @@ void receive(int fd)
 			}break;
 			case HP_HIGH:
 			{
-				rx_struct.RemainHP |= (inByte<<8);
+				rx_struct.RemainHP |= (inByte << 8);
 				rx_state = ARMOR;
 			}break;
 			case ARMOR:
 			{
-				cout << "HP " << rx_struct.RemainHP <<endl;
+				cout << "HP " << rx_struct.RemainHP << endl;
 				rx_struct.Armor = inByte;
 				rx_state = RX_SOF;
 			}break;
@@ -271,50 +309,13 @@ void receive(int fd)
 				rx_state = RX_SOF;
 			}
 		}
-		cout << "rx_state "<<rx_state<<endl;
+		cout << "rx_state "<< rx_state << endl;
 		cout << "inByte "<< inByte << endl;
 	}
-
-
-
-/*
-	uint8_t read_buffer[100];
-	int bytes_read = read(fd, read_buffer, 100);
-	cout << "	Bytes number: " << bytes_read << endl;
-	//cout << "	Content: " << read_buffer << endl;
-	for (int i = 0; i < bytes_read; i++)
-	{
-		if (read_buffer[i] == 0xCE)
-		{
-			cout << "GetSignal\n";
-			ReachEnd = unsigned(read_buffer[i + 1]);
-			uint16_t remainHP = read_buffer[i+2];
-			remainHP |= (read_buffer[i+3]<<8);
-			int ArmourType = unsigned(read_buffer[i + 4])
-		}
-	}
-	for (int i = 0; i < bytes_read; i++)
-*/
 }
 
 
 /* //can be del
-		else {
-			deltaY = 0;
-			deltaP = 0;
-		}
-*/
-//		cout << "MOVE"<< unsigned(MOVE) <<endl;
-//		uint8_t SendSig[] = {HEADER};
-//		int NumWrite = write(fd, SendSig, 1);
-//		cout << NumWrite <<endl;
-//		uint8_t read_buffer[1];
-//		int bytes_read = read(fd,&read_buffer,1);
-//		cout << bytes_read << " " << read_buffer << endl;
-//		for (int i=0; i<bytes_read;i++){
-//			cout << "Converted content; " << unsigned(read_buffer[i]) << endl;
-//		}
-//		cout << fd << endl;
 /*		Send_HEADER(CMD, fd);
 		if (CMD == 1) {
 			int Write = write(fd, MOVE, 1);
