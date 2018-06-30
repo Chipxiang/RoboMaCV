@@ -8,7 +8,7 @@
 * is strictly prohibited.
 *
 */
-
+ 
 /*
  * This example demonstrates how to use CUDNN library to implement forward
  * pass. The sample loads weights and biases from trained network,
@@ -21,7 +21,8 @@
  * The sample can work in single, double, half precision, but it
  * assumes the data in files is stored in single precision
  */
-
+//#include <tesseract/baseapi.h>
+//#include <leptonica/allheaders.h>
 #include <sstream>
 #include <fstream>
 #include <stdlib.h>
@@ -30,6 +31,7 @@
 #include <cudnn.h>
 
 #include <FreeImage.h>
+
 #include "fp16_dev.h"
 #include "fp16_emu.h"
 #include "gemv.h"
@@ -37,11 +39,13 @@
 #include "RuneDet.cpp"
 #include <mutex>
 
+
+
 #define IMAGE_H 28
 #define IMAGE_W 28
-const char *first_image = "Sudoku8.pgm";
-const char *second_image = "Sudoku0.pgm";
-const char *third_image = "five_28x28.pgm";
+//const char *first_image = "Sudoku8.pgm";
+//const char *second_image = "Sudoku0.pgm";
+//const char *third_image = "five_28x28.pgm";
 
 const char *conv1_bin = "conv1.bin";
 const char *conv1_bias_bin = "conv1.bias.bin";
@@ -60,14 +64,14 @@ mutex mtx;
  * Prints the error message, and exits
  * ******************************************************/
 
-#define EXIT_WAIVED 0
 
+
+#define EXIT_WAIVED 0
 
 void get_path(std::string& sFilename, const char *fname, const char *pname)
 {
     sFilename = (std::string("data/") + std::string(fname));
 }
-
 // Need the map, since scaling factor is of float type in half precision
 // Also when one needs to use float instead of half, e.g. for printing
 template <typename T> 
@@ -417,7 +421,7 @@ void setTensorDesc(cudnnTensorDescriptor_t& tensorDesc,
                                             c*h*w, h*w, w, 1) );
 #endif
 }
-
+ 
 template <class value_type>
 class network_t
 {
@@ -491,6 +495,7 @@ class network_t
     {
         convAlgorithm = (int) algo;
     }
+    
     void addBias(const cudnnTensorDescriptor_t& dstTensorDesc, const Layer_t<value_type>& layer, int c, value_type *data)
     {
         setTensorDesc(biasTensorDesc, tensorFormat, dataType, 1, c, 1, 1);
@@ -584,6 +589,7 @@ class network_t
                                                     0,
                                                     &algo
                                                     ) );
+                                                    
             std::cout << "Fastest algorithm is Algo " << algo << "\n";
             convAlgorithm = algo;
             // New way of finding the fastest config
@@ -815,7 +821,7 @@ class network_t
         checkCudaErrors( cudaFree(dstData) );
         return id;
     }
-    
+   
     int classify_exampleMat(Mat &img, const Layer_t<value_type>& conv1,
                           const Layer_t<value_type>& conv2,
                           const Layer_t<value_type>& ip1,
@@ -894,7 +900,6 @@ void displayUsage()
     printf( "image=<name>           : classify specific image\n");
 }
 
-
 int DigitRecognition()
 {   
     int i1,i2,i3;
@@ -924,8 +929,6 @@ int DigitRecognition()
             low_memory = true;
 #endif
         }
-
-            
         {
             std::cout << "\nTesting single precision\n";
             network_t<float> mnist;
@@ -936,9 +939,60 @@ int DigitRecognition()
             bool newFrame = true;
             bool finishNine = false;
             bool frameSwitch = true;
+            //tesseract::TessBaseAPI *ocr = new tesseract::TessBaseAPI();
+            //cout << "TESSERACT" << endl;
+            int ledBuffer[5] = {10,10,10,10,10};
+            int counter = 0;
             while(true){
 				int id[9];
+				int led[5];
 				if (foundSudoku){
+					//LED Digit part
+					if (foundLED){
+						for(int i=0; i<5; i++){
+							if (ledBuffer[i]!=ledDigits[i] && ledDigits[i] != 10){
+								counter = 0;
+								for(int j=0; j<5; j++){
+									if(ledDigits[i] != 10)
+										ledBuffer[j] = ledDigits[j];
+								}
+								break;
+							}
+						}
+					}
+
+					/*for(int i=0;i<5;i++){
+						led[i] = mnist.classify_exampleMat(redNums[i], conv1, conv2, ip1, ip2, i);
+						cout << led[i] << " ";
+					}
+					cout << endl;*/
+					
+					/*if(foundLED){
+						string outText;
+						//string imPath = argv[1];
+
+						// Create Tesseract object
+						
+						// Initialize tesseract to use English (eng) and the LSTM OCR engine. 
+						ocr->Init(NULL, "eng", tesseract::OEM_LSTM_ONLY);
+
+						// Set Page segmentation mode to PSM_AUTO (3)
+						ocr->SetPageSegMode(tesseract::PSM_SINGLE_LINE);
+
+						// Set image data
+						ocr->SetVariable("tessedit_char_blacklist", "!?@#$%&*()<>_-+=/:;'\"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
+						ocr->SetVariable("tessedit_char_whitelist", ".,0123456789");
+						//ocr->SetVariable("classify_bln_numeric_mode", "1");
+						ocr->SetImage(redBoard.data, redBoard.cols, redBoard.rows, 3, redBoard.step);
+
+						// Run Tesseract OCR on image
+						outText = string(ocr->GetUTF8Text());
+
+						// print recognized text
+						cout << outText << endl; // Destroy used object and release memory ocr->End();
+						
+					}*/
+					//sudoku Recognition part
 					//cout << "Result: ";
 					for(int i=0;i<9;i++){
 						id[i] = mnist.classify_exampleMat(sudoku_mat[i], conv1, conv2, ip1, ip2, i);
@@ -946,10 +1000,12 @@ int DigitRecognition()
 							newFrame = true;
 							frameSwitch = true;
 							break;
+							
 						}
 						if (i==8)
 							frameSwitch = false;
 					}
+					
 					if (newFrame && !frameSwitch){
 						for(int i =0; i<9; i++){
 							//substitute zeros
@@ -963,9 +1019,7 @@ int DigitRecognition()
 								}
 							}
 						}
-						
 						int redundancyCheck[9][10] = {0}; //id, redundancy
-						
 						//redundancy ellimination
 						bool redundancyFlag = true;
 						while(redundancyFlag){
@@ -987,6 +1041,7 @@ int DigitRecognition()
 												}
 											}
 										}
+										
 										else{
 											redundancyCheck[j][sameId] = 1;
 											float acc = 0;
@@ -999,23 +1054,33 @@ int DigitRecognition()
 												}
 											}
 										}
+										
 									}
 								}
 							}
 							if(!redundancyFlag)
 								break;
+								
 						}
+		
 						newFrame = false;
 						//shooting condition determination
-						for(int i=0;i<9;i++){
-							cout << id[i] << " ";
-							if (id[i] == target_digit){
-								target_sudoku = i;
-								//cout << "FIRE!!!";
-								finishNine = false;
+						target_digit = ledDigits[counter];
+						if (target_digit >0 && target_digit <10){
+							
+							for(int i=0;i<9;i++){
+								cout << id[i] << " ";
+								if (id[i] == target_digit){
+									target_sudoku = i;
+									//cout << "FIRE!!!";
+									finishNine = false;
+									//break;
+								}
 							}
+							cout << endl;
+							if(counter !=4) counter++;
+							else counter = 0;
 						}
-						cout << endl;
 					}
 				}
 				
@@ -1041,7 +1106,6 @@ int DigitRecognition()
                 std::cout << "\nTest passed!\n";
             }*/
         }
-
         //cudaDeviceReset();
         exit(EXIT_SUCCESS);        
 }
