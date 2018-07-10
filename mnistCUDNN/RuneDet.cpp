@@ -345,7 +345,7 @@ int Start()
 					cout << sudoku_rects[i].center.x << " " << sudoku_rects[i].center.y << endl;
 					cout << endl;
 				}*/
-				
+				int ledBuffer[5] = {0};
 				double xa,xb,xc,xd,xred;
 				xc = sudoku_rects[8].center.x + (112.0/370.0)*(sudoku_rects[7].center.x - sudoku_rects[8].center.x) * ((sudoku_rects[7].center.x - sudoku_rects[8].center.x)/(sudoku_rects[6].center.x - sudoku_rects[7].center.x));
 				xd = sudoku_rects[8].center.x + ((112.0+520.0)/370.0)*(sudoku_rects[7].center.x - sudoku_rects[8].center.x) * ((sudoku_rects[7].center.x - sudoku_rects[8].center.x)/(sudoku_rects[6].center.x - sudoku_rects[7].center.x));
@@ -385,12 +385,14 @@ int Start()
 					Mat redNum;
 					Mat redRaw;
 					Rect rect1(xc,min(ya,yb),xd-xc,max(yc,yd)-min(ya,yb));
-					binary(rect1).copyTo(redRaw);
+					Mat binaryLED;
+					threshold(src, binaryLED, 180, 255, THRESH_BINARY);
+					binaryLED(rect1).copyTo(redRaw);
 					//threshold(redBoard, redRev, 150, 255, THRESH_BINARY_INV);
 
 					
 					
-					for(int i=0; i<5; i++){
+					/*for(int i=0; i<5; i++){
 						Rect rect2(xc+i*(1.0/5.0)*(xd-xc),min(ya,yb),(1.0/5.0)*(xd-xc),max(yc,yd)-min(ya,yb));
 						binary(rect2).copyTo(redNum);
 						
@@ -403,8 +405,11 @@ int Start()
 						imwrite("LED" + to_string(i) + ".jpg", reversed);
 
 						waitKey(1);
-					}
-					dilate(redRaw, redBoard,Mat(), Point(-1, -1), 2, 1, 1);
+					}*/
+					resize(redRaw, redRaw, Size(312,86),INTER_CUBIC);
+					Mat element = getStructuringElement(CV_SHAPE_ELLIPSE, Size(3, 3));
+					//erode(redRaw, redBoard,element, Point(-1, -1), 1, 1, 1);
+					dilate(redRaw, redBoard,element, Point(-1, -1), 1, 1, 1);
 					//imshow("Board",redBoard);
 					vector<vector<Point>> contours;
 					findContours(redBoard, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
@@ -441,17 +446,18 @@ int Start()
 								Point2f pts[4];
 								int on[7] = {0};
 								Mat roi0 = redBoard(ledRect);
+								dilate(roi0, roi0,element, Point(-1, -1), 2, 1, 1);
 								vector<Point> shape;
 								uchar* p;
 								//cout << roi0 << endl << endl;
 								bool f = false;
-								for (int i = 0; i < roi0.rows; ++i) // Careful it's <= to include EndRow
+								for (int i = 5; i < roi0.rows; ++i) // Careful it's <= to include EndRow
 								{
 									p = roi0.ptr<uchar>(i);
 									for (int j = 0; j < roi0.cols; ++j)
 									{
 										if(p[j] != 0){
-											pts[0] = Point(j-1,i);
+											pts[0] = Point(j,i);
 											f = true;
 											break;
 										}
@@ -460,13 +466,13 @@ int Start()
 								}
 								//shape.push_back(Point(0, roi0.rows-1));
 								
-								for (int i = roi0.rows-1; i >=0; --i)
+								for (int i = roi0.rows-6; i >=0; --i)
 								{
 									p = roi0.ptr<uchar>(i);
 									for (int j = roi0.cols-1; j >=0 ; --j)
 									{
 										if(p[j] != 0){
-											pts[2] = Point(j+1,i);
+											pts[2] = Point(j,i);
 											f = true;
 											break;
 										}
@@ -474,13 +480,13 @@ int Start()
 									if(f) break;
 								}
 								
-								for (int i = 0; i < roi0.rows; ++i)
+								for (int i = 5; i < roi0.rows; ++i)
 								{
 									p = roi0.ptr<uchar>(i);
 									for (int j = roi0.cols-1; j >=0 ; --j)
 									{
 										if(p[j] != 0){
-											pts[3] = Point(j+1,i);
+											pts[3] = Point(j,i);
 											f = true;
 											break;
 										}
@@ -495,9 +501,9 @@ int Start()
 								
 
 								//pts[0] = Point(5, 0);
-								pts[1] = Point(0, roi0.rows-1);
+								//pts[1] = Point(0, roi0.rows-1);
 								//pts[2] = Point(roi0.cols-1, roi0.rows-7);
-								pts[3] = Point(roi0.cols-1, 0);
+								//pts[3] = Point(roi0.cols-1, 0);
 
 								// Does the order of the points matter? I assume they do NOT.
 								// But if it does, is there an easy way to identify and order 
@@ -510,9 +516,9 @@ int Start()
 								//src_vertices[3] = not_a_rect_shape[3];
 
 								Point2f dst_vertices[3];
-								dst_vertices[0] = Point(0, 0);
-								dst_vertices[1] = Point(roi0.cols-1, roi0.rows-1);
-								dst_vertices[2] = Point(roi0.cols-1, 0);
+								dst_vertices[0] = Point(0, 5);
+								dst_vertices[1] = Point(roi0.cols-1, roi0.rows-6);
+								dst_vertices[2] = Point(roi0.cols-1, 5);
 							  
 								Mat warpAffineMatrix = getAffineTransform(src_vertices, dst_vertices);
 
@@ -524,11 +530,12 @@ int Start()
 								
 								Mat roi = rotated;
 								Size s = roi.size();
+								
 								int roiH = s.height;
 								int roiW = s.width;
-								int dW = roiW*0.25;
-								int dH = roiH*0.20;
-								int dHC = roiH * 0.1;
+								int dW = roiW*0.31;
+								int dH = roiH*0.18;
+								int dHC = dH * 0.5;
 								int segments[7][4] = 
 								{
 									{dW,0,ledRect.width-dW,dH}, //top
@@ -548,14 +555,18 @@ int Start()
 									Mat segRoi = roi(segRect);
 									float total = countNonZero(segRoi);
 									float area = (segments[j][2] - segments[j][0])* (segments[j][3] - segments[j][1]);
-									if(total*1.0/(area*1.0)>0.8){
+									if(total*1.0/(area*1.0)>0.6){
 										on[j] = 1;
 										rectangle(test, segRect, colour);
+										rectangle(rotated, segRect, Scalar(0, 0, 0));
 									}else{
 										on[j]=0;
 									}
-									//imshow("1", test);
-									//imshow("2", rotated);
+									if(total*1.0/(area*1.0)>0.6 &&  total*1.0/(area*1.0)< 0.8){
+										imwrite("Test.jpg", rotated);
+									}
+									imshow("1", test);
+									imshow("2", rotated);
 								}
 								
 								int DIGITS_LOOKUP[9][7] = {
@@ -583,13 +594,27 @@ int Start()
 									}
 								}
 								
+								//ledBuffer[i] = y+1;
 								ledDigits[i] = y+1;
-								
 								//cout << ledRect.x << " " << ledRect.y << " " << ledRect.width << " " << ledRect.height << " " << endl << endl;
 							}
+							
 							//cout << ledDigits[i] << " ";
 							
 						}
+						/*int ledChangeCounter = 0;
+						for(int i =0; i< 5;i++){
+							if(ledBuffer[i] != ledDigits[i]){
+								ledChangeCounter ++;
+							}
+						}
+						if (ledChangeCounter >1){
+							for(int i =0; i< 5;i++){
+								if(ledBuffer[i] != 10){
+									ledDigits[i] = ledBuffer[i];
+								}
+							}
+						}*/
 						//cout << endl;
 					}
 					

@@ -979,7 +979,7 @@ int DigitRecognition()
 							frameSwitch = false;
 						}
 					}
-					
+				
 					if (!frameSwitch){
 						for(int i =0; i<9; i++){
 							//substitute zeros
@@ -1016,6 +1016,7 @@ int DigitRecognition()
 											}
 										}
 										
+						
 										else{
 											redundancyCheck[j][sameId] = 1;
 											float acc = 0;
@@ -1032,9 +1033,9 @@ int DigitRecognition()
 									}
 								}
 							}
+							
 							if(!redundancyFlag)
 								break;
-								
 						}
 						int frameCount = 0;
 						for (int i=0; i< 9; i++){
