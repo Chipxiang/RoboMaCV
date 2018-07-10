@@ -308,7 +308,7 @@ int Start()
 		
 		while(true)
 		{
-			foundSudoku = false;
+			//foundSudoku = false;
 			int8_t IsFound = 0;
 			int8_t PitAng, YawAng; 
 			Mat image;
@@ -328,21 +328,13 @@ int Start()
 			
 			findContours(binary, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
 			sudoku_rects.clear();
-			
-			if (checkSudoku(contours, sudoku_rects)){
+			foundSudoku = checkSudoku(contours, sudoku_rects);
+			if (foundSudoku){
 				chooseTargetPerspective(binary, sudoku_rects);
 				foundSudoku = true;
 			}
-			
-			
-			
-			
-			
 			CvScalar colour;
 			colour = CV_RGB(0, 0, 255);
-			
-			
-			
 			//qiyue adding
 			//cout << "testing on qiyue section" << endl;
 			//cout << "testing on foundSudoku: " << foundSudoku << endl;
@@ -665,8 +657,8 @@ void chooseTargetPerspective(const Mat & image, const vector<RotatedRect> & sudo
         //Mat kernel = getStructuringElement(0, Size(3,3));
 		//morphologyEx(reversed, processed, MORPH_OPEN, kernel);
 		//imwrite("Sudoku" + to_string(i) + ".pgm", reversed);
+		//imshow("Sudoku" + to_string(i), reversed);
 		sudoku_mat[i] = reversed;
-		
 	}
 	
 }

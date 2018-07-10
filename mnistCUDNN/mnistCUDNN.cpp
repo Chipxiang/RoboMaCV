@@ -38,7 +38,7 @@
 #include "error_util.h"
 #include "RuneDet.cpp"
 #include <mutex>
-
+#include <algorithm>
 
 
 #define IMAGE_H 28
@@ -939,14 +939,15 @@ int DigitRecognition()
             bool newFrame = true;
             bool finishNine = false;
             bool frameSwitch = true;
-            //tesseract::TessBaseAPI *ocr = new tesseract::TessBaseAPI();
-            //cout << "TESSERACT" << endl;
             int ledBuffer[5] = {10,10,10,10,10};
             int counter = 0;
+            int id[9] = {0};
+            int idBuffer[9] = {0};
             while(true){
-				int id[9];
 				int led[5];
+				//cout << foundSudoku << endl;
 				if (foundSudoku){
+					//cout << "TEST" ;
 					//LED Digit part
 					if (foundLED){
 						for(int i=0; i<5; i++){
@@ -960,53 +961,26 @@ int DigitRecognition()
 							}
 						}
 					}
-
-					/*for(int i=0;i<5;i++){
-						led[i] = mnist.classify_exampleMat(redNums[i], conv1, conv2, ip1, ip2, i);
-						cout << led[i] << " ";
-					}
-					cout << endl;*/
 					
-					/*if(foundLED){
-						string outText;
-						//string imPath = argv[1];
-
-						// Create Tesseract object
-						
-						// Initialize tesseract to use English (eng) and the LSTM OCR engine. 
-						ocr->Init(NULL, "eng", tesseract::OEM_LSTM_ONLY);
-
-						// Set Page segmentation mode to PSM_AUTO (3)
-						ocr->SetPageSegMode(tesseract::PSM_SINGLE_LINE);
-
-						// Set image data
-						ocr->SetVariable("tessedit_char_blacklist", "!?@#$%&*()<>_-+=/:;'\"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
-						ocr->SetVariable("tessedit_char_whitelist", ".,0123456789");
-						//ocr->SetVariable("classify_bln_numeric_mode", "1");
-						ocr->SetImage(redBoard.data, redBoard.cols, redBoard.rows, 3, redBoard.step);
-
-						// Run Tesseract OCR on image
-						outText = string(ocr->GetUTF8Text());
-
-						// print recognized text
-						cout << outText << endl; // Destroy used object and release memory ocr->End();
-						
-					}*/
-					//sudoku Recognition part
-					//cout << "Result: ";
 					for(int i=0;i<9;i++){
 						id[i] = mnist.classify_exampleMat(sudoku_mat[i], conv1, conv2, ip1, ip2, i);
-						if(id[i]==1 && sudoku_result[i][1]<0.45){
+						/*if(id[i]==1 && sudoku_result[i][1]<0.45){
 							newFrame = true;
 							frameSwitch = true;
 							break;
-							
+						}*/
+						if((id[i]==1 && sudoku_result[i][1]<0.7) || sudoku_result[i][id[i]]<0.5 ){
+							frameSwitch = true;
+							break;
 						}
-						if (i==8)
+						//frameSwitch = false;
+						
+						if(i==8){
 							frameSwitch = false;
+						}
 					}
 					
-					if (newFrame && !frameSwitch){
+					if (!frameSwitch){
 						for(int i =0; i<9; i++){
 							//substitute zeros
 							if(id[i]==0){
@@ -1062,29 +1036,48 @@ int DigitRecognition()
 								break;
 								
 						}
-		
-						newFrame = false;
-						//shooting condition determination
-						target_digit = ledDigits[counter];
-						if (target_digit >0 && target_digit <10){
-							
-							for(int i=0;i<9;i++){
-								cout << id[i] << " ";
-								if (id[i] == target_digit){
-									target_sudoku = i;
-									//cout << "FIRE!!!";
-									finishNine = false;
-									//break;
-								}
+						int frameCount = 0;
+						for (int i=0; i< 9; i++){
+							if(id[i] != idBuffer[i]){
+								frameCount ++;
+								//cout << counter << endl;
+								if(frameCount > 3){
+									newFrame = true;
+									break;
+								}	
 							}
-							cout << endl;
-							if(counter !=4) counter++;
-							else counter = 0;
+						}
+						if (frameCount<=3){
+							newFrame = false;
+						}
+						if (newFrame){
+							for(int i=0;i<9;i++){
+								idBuffer[i] = id[i];
+							}
+							newFrame = false;
+							//shooting condition determination
+							target_digit = ledDigits[counter];
+							if (target_digit >0 && target_digit <10){
+								
+								for(int i=0;i<9;i++){
+									cout << id[i] << " ";
+									if (id[i] == target_digit){
+										target_sudoku = i;
+										//cout << "FIRE!!!";
+										finishNine = false;
+										//break;
+									}
+								}
+								cout << endl;
+								if(counter !=4) counter++;
+								else counter = 0;
+							}
 						}
 					}
 				}
 				
 			}
+			
             //get_path(image_path, first_image, PATH);
             //i1 = mnist.classify_example(image_path.c_str(), conv1, conv2, ip1, ip2);
             /*
