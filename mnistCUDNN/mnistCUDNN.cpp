@@ -993,6 +993,7 @@ int DigitRecognition()
 								}
 							}
 						}
+						
 						int redundancyCheck[9][10] = {0}; //id, redundancy
 						//redundancy ellimination
 						bool redundancyFlag = true;

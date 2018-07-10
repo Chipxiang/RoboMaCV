@@ -451,7 +451,7 @@ int Start()
 								uchar* p;
 								//cout << roi0 << endl << endl;
 								bool f = false;
-								for (int i = 5; i < roi0.rows; ++i) // Careful it's <= to include EndRow
+								for (int i = 0.09*roi0.rows; i < roi0.rows; ++i) // Careful it's <= to include EndRow
 								{
 									p = roi0.ptr<uchar>(i);
 									for (int j = 0; j < roi0.cols; ++j)
@@ -480,7 +480,7 @@ int Start()
 									if(f) break;
 								}
 								
-								for (int i = 5; i < roi0.rows; ++i)
+								for (int i = 0.09*roi0.rows; i < roi0.rows; ++i)
 								{
 									p = roi0.ptr<uchar>(i);
 									for (int j = roi0.cols-1; j >=0 ; --j)
