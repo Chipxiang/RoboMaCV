@@ -2,7 +2,7 @@
 #define __ARMOURDET_H_
 
 void Detect(void);
-void CamInitial(void);
+int CamInitial(void);
 
 #endif
 
