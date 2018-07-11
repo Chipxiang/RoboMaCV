@@ -821,7 +821,6 @@ class network_t
         checkCudaErrors( cudaFree(dstData) );
         return id;
     }
-   
     int classify_exampleMat(Mat &img, const Layer_t<value_type>& conv1,
                           const Layer_t<value_type>& conv2,
                           const Layer_t<value_type>& ip1,
@@ -993,7 +992,6 @@ int DigitRecognition()
 								}
 							}
 						}
-						
 						int redundancyCheck[9][10] = {0}; //id, redundancy
 						//redundancy ellimination
 						bool redundancyFlag = true;
@@ -1016,8 +1014,6 @@ int DigitRecognition()
 												}
 											}
 										}
-										
-						
 										else{
 											redundancyCheck[j][sameId] = 1;
 											float acc = 0;

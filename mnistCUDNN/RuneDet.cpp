@@ -565,8 +565,8 @@ int Start()
 									if(total*1.0/(area*1.0)>0.6 &&  total*1.0/(area*1.0)< 0.8){
 										imwrite("Test.jpg", rotated);
 									}
-									imshow("1", test);
-									imshow("2", rotated);
+									//imshow("1", test);
+									//imshow("2", rotated);
 								}
 								
 								int DIGITS_LOOKUP[9][7] = {

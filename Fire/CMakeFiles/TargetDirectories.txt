@@ -1,0 +1,3 @@
+/home/nvidia/Downloads/opencv大神符/CMakeFiles/edit_cache.dir
+/home/nvidia/Downloads/opencv大神符/CMakeFiles/rebuild_cache.dir
+/home/nvidia/Downloads/opencv大神符/CMakeFiles/su_v2.dir
