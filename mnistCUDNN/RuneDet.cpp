@@ -4,6 +4,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/features2d.hpp> // region detection
+#include <opencv2/objdetect/objdetect.hpp>
 #include <time.h>
 #include <opencv2/core/types_c.h> // To use CvScalar
 #include <stdio.h>
@@ -356,6 +357,7 @@ int Start()
 			if (foundRange){
 				Mat redRaw = findRed(image);
 				if(!redRaw.empty()){
+					
 					recognizeLED(redRaw);					
 				}
 				else{foundLED = false;}
@@ -418,7 +420,7 @@ int Start()
 					Mat redRaw;
 					Rect rect1(xc,min(ya,yb),xd-xc,max(yc,yd)-min(ya,yb));
 					Mat binaryLED;
-					threshold(src, binaryLED, 180, 255, THRESH_BINARY);
+					threshold(src, binaryLED, 200, 255, THRESH_BINARY);
 					binaryLED(rect1).copyTo(redRaw);
 					//threshold(redBoard, redRev, 150, 255, THRESH_BINARY_INV);
 					recognizeLED(redRaw);					
@@ -466,10 +468,10 @@ int Start()
 } // main
 
 void recognizeLED(Mat redRaw){
-	resize(redRaw, redRaw, Size(312,86),INTER_CUBIC);
-	Mat element = getStructuringElement(CV_SHAPE_ELLIPSE, Size(3, 3));
+	resize(redRaw, redRaw, Size(544,162),INTER_CUBIC);
+	Mat element = getStructuringElement(CV_SHAPE_ELLIPSE, Size(5, 5));
 	//erode(redRaw, redBoard,element, Point(-1, -1), 1, 1, 1);
-	dilate(redRaw, redBoard,element, Point(-1, -1), 1, 1, 1);
+	dilate(redRaw, redBoard,element, Point(-1, -1), 4, 1, 1);
 	//imshow("Board",redBoard);
 	vector<vector<Point>> contours;
 	findContours(redBoard, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
@@ -478,12 +480,14 @@ void recognizeLED(Mat redRaw){
 	sort(contours.begin(), contours.end(), contour_sorter());
 	int j=0;
 	for (int i = 0; i < contours.size(); i++){
-		if(contours[i].size() > 5){
+		if(contours[i].size() > 10){
 			ledRect = boundingRect(contours[i]);
-			//rectangle(redBoard, ledRect, colour);
-			digitCnt.push_back(contours[i]);
-			//cout << contours[i] << endl;
-			j++;
+			//if(ledRect.width/ledRect.height>91.0/123.0-0.1 && ledRect.width/ledRect.height>91.0/123.0+0.1){
+				//rectangle(redBoard, ledRect, colour);
+				digitCnt.push_back(contours[i]);
+				//cout << contours[i] << endl;
+				j++;
+			//}
 			if (j>5){
 				foundLED = false;
 				break;
@@ -495,7 +499,6 @@ void recognizeLED(Mat redRaw){
 	}
 	if(foundLED){
 		for (int i=0; i<5; i++){
-			
 			ledRect = boundingRect(digitCnt[i]);
 			//if 1
 			if(ledRect.height *1.0 / (ledRect.width*1.0) > 2){
@@ -506,7 +509,7 @@ void recognizeLED(Mat redRaw){
 				Point2f pts[4];
 				int on[7] = {0};
 				Mat roi0 = redBoard(ledRect);
-				dilate(roi0, roi0,element, Point(-1, -1), 2, 1, 1);
+				//dilate(roi0, roi0,element, Point(-1, -1), 2, 1, 1);
 				vector<Point> shape;
 				uchar* p;
 				//cout << roi0 << endl << endl;
@@ -526,7 +529,7 @@ void recognizeLED(Mat redRaw){
 				}
 				//shape.push_back(Point(0, roi0.rows-1));
 				
-				for (int i = roi0.rows-6; i >=0; --i)
+				for (int i = roi0.rows-0.09*roi0.rows-1; i >=0; --i)
 				{
 					p = roi0.ptr<uchar>(i);
 					for (int j = roi0.cols-1; j >=0 ; --j)
@@ -576,9 +579,9 @@ void recognizeLED(Mat redRaw){
 				//src_vertices[3] = not_a_rect_shape[3];
 
 				Point2f dst_vertices[3];
-				dst_vertices[0] = Point(0, 5);
-				dst_vertices[1] = Point(roi0.cols-1, roi0.rows-6);
-				dst_vertices[2] = Point(roi0.cols-1, 5);
+				dst_vertices[0] = Point(0, 0.09*roi0.rows);
+				dst_vertices[1] = Point(roi0.cols-1, roi0.rows-0.09*roi0.rows-1);
+				dst_vertices[2] = Point(roi0.cols-1, 0.09*roi0.rows);
 			  
 				Mat warpAffineMatrix = getAffineTransform(src_vertices, dst_vertices);
 
@@ -615,10 +618,10 @@ void recognizeLED(Mat redRaw){
 					Mat segRoi = roi(segRect);
 					float total = countNonZero(segRoi);
 					float area = (segments[j][2] - segments[j][0])* (segments[j][3] - segments[j][1]);
-					if(total*1.0/(area*1.0)>0.6){
+					if(total*1.0/(area*1.0)>0.7){
 						on[j] = 1;
-						//rectangle(test, segRect, colour);
-						//rectangle(rotated, segRect, Scalar(0, 0, 0));
+						rectangle(test, segRect, Scalar(0, 0, 0));
+						rectangle(rotated, segRect, Scalar(0, 0, 0));
 					}else{
 						on[j]=0;
 					}
@@ -1069,14 +1072,14 @@ Mat findRed(Mat find_frame){
 	//cout << "***************" << endl;
 	//cout << roi_rect.x << "," << roi_rect.y << endl;
 	//cout << roi_rect.width << " " << roi_rect.height << endl;
-	int width = roi_rect.width*580/1140;
-	int height = roi_rect.height*180/710;
+	int width = roi_rect.width*580.0/1140.0;
+	int height = roi_rect.height*180.0/710.0;
 	//cout << width << " " << height << endl;
 	int xa, ya, xd, yd;
-	xa = roi_rect.x + roi_rect.width*280/1140;
-	xd = xa + roi_rect.width*(300+560)/1140;
-	ya = roi_rect.y - roi_rect.height*190/710;
-	yd = ya + roi_rect.height*180/710;
+	xa = roi_rect.x + roi_rect.width*280.0/1140.0;
+	xd = xa + roi_rect.width*(300.0+560.0)/1140.0;
+	ya = roi_rect.y - roi_rect.height*190.0/710.0;
+	yd = ya + roi_rect.height*180.0/710.0;
 	//cout << xa << " " << ya << endl;
 	//cout << " " << xd << " " << yd << endl;
 	//cout << "######################" << endl;
@@ -1093,7 +1096,7 @@ Mat findRed(Mat find_frame){
 		Rect rect1(xa, ya, width, height);
 		Mat binaryLED;
 		cvtColor(find_frame, binaryLED, CV_BGR2GRAY); 
-		threshold(binaryLED, binaryLED, 220, 255, THRESH_BINARY);
+		threshold(binaryLED, binaryLED, 230, 255, THRESH_BINARY);
 		binaryLED(rect1).copyTo(redRaw);
 		return redRaw;
 	}
@@ -1114,7 +1117,7 @@ bool findRange(Mat input_frame)
 	//imshow("in", copy_frame); //copy_frame is the original frame
 	/****************灰度 二值化******************/
 	cvtColor(int_frame, int_frame, CV_BGR2GRAY); //int_frame is the converted frame
-	threshold(int_frame, int_frame, 50, 255, THRESH_BINARY | THRESH_OTSU); //two flags determine the best threashold for binarization
+	threshold(int_frame, int_frame, 200, 255, THRESH_BINARY | THRESH_OTSU); //two flags determine the best threashold for binarization
 	
 	Canny(int_frame, int_frame, 120, 240); //这里用Canny的效果还不错
 	//imshow("THRESH", int_frame); //int_frame is the binarized image
@@ -1133,9 +1136,9 @@ bool findRange(Mat input_frame)
 				continue;
 			}
 			boundRect[i] = boundingRect(Mat(contours[i]));
-			if (boundRect[i].width / boundRect[i].height<1.0 || boundRect[i].width / boundRect[i].height>2.5)   //限制宽高比来进一步确定点 if语句内的值也可以根据实际改变
+			if (boundRect[i].width*1.0 / (boundRect[i].height*1.0) < 1.6 || boundRect[i].width *1.0 / (boundRect[i].height*1.0)> 2.4)   //限制宽高比来进一步确定点 if语句内的值也可以根据实际改变
 				continue;
-	//			drawContours(drawing, contours, i, Scalar(0.0, 255), 2);
+			//drawContours(input_frame, contours, i, Scalar(0.0, 255), 2);
 			//rectangle(int_frame, boundRect[i], Scalar(255, 0, 0));
 				/*******这里我将一整张图片从中间切开成两张处理，但不显示出来******/
 
@@ -1144,7 +1147,10 @@ bool findRange(Mat input_frame)
 			else
 				rightRect.push_back(boundRect[i]);
 		}
-		if(leftRect.size()> 3 && rightRect.size()>3) {
+		groupRectangles(leftRect, 1, 0.2);
+		groupRectangles(rightRect, 1, 0.2);
+		if(leftRect.size() > 3 && rightRect.size()>3) {
+			//cout << leftRect.size() << " " << rightRect.size() << endl;
 			vector<Rect> left_rect;
 			vector<Rect> right_rect;
 			bool find_left = true;
@@ -1153,14 +1159,20 @@ bool findRange(Mat input_frame)
 		//		return false;
 
 			/*判断左侧的每一个矩形之间的左上坐标的x的误差值*/
-			for (int i = 0; i < leftRect.size() - 1; i++)
+			int rectCounter = 0;
+			for (int i = 0; i < leftRect.size(); i++)
 			{
-				for (int j = 1; j < leftRect.size(); j--)
-					if (abs(leftRect[i].tl().x - leftRect[j].tl().x) > 10)
-						find_left = false;
-				if (find_left)
+				for (int j = 0; j < leftRect.size(); j++){
+					if(i==j)
+						continue;
+					if (abs(leftRect[i].tl().x - leftRect[j].tl().x) < 0.2*leftRect[i].width && leftRect[i].height - leftRect[j].height <0.2*leftRect[i].height
+					&& leftRect[i].width - leftRect[i].width < 0.2 * leftRect[i].width )
+						rectCounter ++;
+				}
+					
+				if (rectCounter > 3)
 					left_rect.push_back(leftRect[i]);
-				find_left = true;
+				rectCounter = 0;
 			}
 
 			/*for (int i = 0; i < left_rect.size(); i++)
@@ -1168,10 +1180,25 @@ bool findRange(Mat input_frame)
 				rectangle(drawing, left_rect[i], Scalar(255, 0, 0), 2);
 			}*/
 		//	imshow("drawing", drawing);
-
+			for (int i = 0; i < rightRect.size(); i++)
+			{
+				for (int j = 0; j < rightRect.size(); j++){
+					if(i==j)
+						continue;
+					if (abs(rightRect[i].tl().x - rightRect[j].tl().x) < 0.2*rightRect[i].width && rightRect[i].height - rightRect[j].height <0.2*rightRect[i].height
+					&& rightRect[i].width - rightRect[i].width < 0.2 * rightRect[i].width )
+						rectCounter ++;
+				}
+					
+				if (rectCounter > 3){
+					right_rect.push_back(rightRect[i]);
+					//cout << rightRect[i].x << " " << rightRect[i].y << endl;
+				}
+				rectCounter = 0;
+			}
 			
 			/*判断右侧的每一个矩形之间的左上坐标的x的误差值*/
-			bool find_right = true;
+			/*bool find_right = true;
 			for (int i = 0; i < rightRect.size() - 1; i++)
 			{
 
@@ -1184,18 +1211,19 @@ bool findRange(Mat input_frame)
 				if (find_right)
 					right_rect.push_back(rightRect[i]);
 				find_right = true;
-			}
+			}*/
 			/*for (int i = 0; i < right_rect.size(); i++)
 			{
-				rectangle(drawing, right_rect[i], Scalar(0, 255, 0), 2);
-			}
-			imshow("drawing", drawing);*/
+				//rectangle(input_frame, right_rect[i], Scalar(0, 255, 0), 2);
+				rectangle(input_frame, leftRect[i], Scalar(0, 255, 0), 2);
+			}*/
+			//imshow("drawing", drawing);
 
 			/******这个函数是给师姐做的数码管识别做的 确定现在达到第几个数字******/
 //			bool change = judge_which_number(copy_frame(right_rect[0]));
 			//cout << change << endl;
-			
-			if(right_rect.size()>3 && left_rect.size()>3){
+			//cout << right_rect.size() << " " << left_rect.size() << endl;
+			if(right_rect.size() > 3 && left_rect.size()> 3){
 				//cout << "find left and right" << endl;
 				//高度设定为最低矩形的右下点到最高矩形的左上点的y的差 （以右侧的为准）
 				//c, adjusted into the max and min of two

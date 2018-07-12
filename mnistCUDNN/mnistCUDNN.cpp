@@ -767,33 +767,26 @@ class network_t
                                             dstTensorDesc,
                                             *dstData) );    
     }
-
     int classify_example(const char* fname, const Layer_t<value_type>& conv1,
                           const Layer_t<value_type>& conv2,
                           const Layer_t<value_type>& ip1,
                           const Layer_t<value_type>& ip2)
     {
-	
         int n,c,h,w;
         value_type *srcData = NULL, *dstData = NULL;
         value_type imgData_h[IMAGE_H*IMAGE_W];
-
         readImage(fname, imgData_h);
-
         std::cout << "Performing forward propagation ...\n";
 		cout << imgData_h << endl;
         checkCudaErrors( cudaMalloc(&srcData, IMAGE_H*IMAGE_W*sizeof(value_type)) );
         checkCudaErrors( cudaMemcpy(srcData, imgData_h,
                                     IMAGE_H*IMAGE_W*sizeof(value_type),
                                     cudaMemcpyHostToDevice) );
-
         n = c = 1; h = IMAGE_H; w = IMAGE_W;
         convoluteForward(conv1, n, c, h, w, srcData, &dstData);
         poolForward(n, c, h, w, dstData, &srcData);
-
         convoluteForward(conv2, n, c, h, w, srcData, &dstData);
         poolForward(n, c, h, w, dstData, &srcData);
-
         fullyConnectedForward(ip1, n, c, h, w, srcData, &dstData);
         activationForward(n, c, h, w, dstData, &srcData);
         lrnForward(n, c, h, w, srcData, &dstData);
@@ -915,7 +908,6 @@ int DigitRecognition()
     // default behaviour
     //if (argc == 1 || (argc == 2) && checkCmdLineFlag(argc, (const char **)argv, "device"))
     //{
-    
         // check available memory
         struct cudaDeviceProp prop;
         checkCudaErrors(cudaGetDeviceProperties( &prop, device ));
@@ -929,6 +921,7 @@ int DigitRecognition()
             low_memory = true;
 #endif
         }
+       
         {
             std::cout << "\nTesting single precision\n";
             network_t<float> mnist;
@@ -961,7 +954,6 @@ int DigitRecognition()
 							}
 						}
 					}
-					
 					for(int i=0;i<9;i++){
 						id[i] = mnist.classify_exampleMat(sudoku_mat[i], conv1, conv2, ip1, ip2, i);
 						/*if(id[i]==1 && sudoku_result[i][1]<0.45){
