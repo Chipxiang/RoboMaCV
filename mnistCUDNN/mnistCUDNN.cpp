@@ -773,6 +773,7 @@ class network_t
                           const Layer_t<value_type>& ip1,
                           const Layer_t<value_type>& ip2)
     {
+	
         int n,c,h,w;
         value_type *srcData = NULL, *dstData = NULL;
         value_type imgData_h[IMAGE_H*IMAGE_W];
