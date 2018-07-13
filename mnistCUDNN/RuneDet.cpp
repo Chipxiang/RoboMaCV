@@ -20,7 +20,7 @@ using namespace std;
 
 const double pi = 3.14159265359;
 const bool IsShow = true;
-const bool UsingCam = false;
+const bool UsingCam = true;
 const double VAngle = 76*pi/180; // radian
 const int VideoWidth = 640; //1280
 const int VideoHeight = 480; //720
@@ -40,14 +40,16 @@ Mat findRed(Mat find_frame);
 bool findRange(Mat input_frame);
 Point match_number(Mat find_roi, int number);
 void initializeTemplates();
-void recognizeLED(Mat redRaw);
+bool recognizeLED(Mat redRaw);
 Mat templates[9];
 //Mat copy_frame;
-int target_sudoku = 0;
+int target_digit = 1;
 int ledDigits[5];
 Mat redNums[5], redBoard,fire_roi;
 bool foundRange = false;
 Rect roi_rect;
+Point target_point = Point(1,1);
+
 
 struct Point2fWithIdx {
 		cv::Point2f p;
@@ -122,7 +124,7 @@ int Start()
 	else
 	{
 		cout << "Enter Video Name:" << endl;
-		string inputVideo = "nine.mp4";
+		string inputVideo = "Rune.avi";
 		//cin >> inputVideo;
 		MyVideo.open(inputVideo); 
 		if (!MyVideo.isOpened())
@@ -328,7 +330,7 @@ int Start()
 				cout << "Video has been read out. " << endl;
 				break;
 			}
-			resize(image, image, Size(640, 360), 0, 0, INTER_CUBIC);
+			//resize(image, image, Size(640, 360), 0, 0, INTER_CUBIC);
 			Mat src;
 			cvtColor(image, src, CV_BGR2GRAY);
 			Mat binary;
@@ -357,11 +359,11 @@ int Start()
 			if (foundRange){
 				Mat redRaw = findRed(image);
 				if(!redRaw.empty()){
-					
-					recognizeLED(redRaw);					
+					//foundLED = true;
+					foundLED = recognizeLED(redRaw);					
 				}
-				else{foundLED = false;}
-				Point targetCenter = match_number(fire_roi, 9);
+				else{ foundLED = false; }
+				/*Point targetCenter = match_number(fire_roi, 9);
 				targetCenter.x += roi_rect.x;
 				targetCenter.y += roi_rect.y;
 				//cout << roi_rect.size() << endl;		
@@ -369,7 +371,7 @@ int Start()
 				if(targetCenter!= Point(-1,-1)){
 					line(image, {targetCenter.x - 10, targetCenter.y }, { targetCenter.x + 10, targetCenter.y }, CV_RGB(0, 0, 255), 2);
 					line(image, {targetCenter.x, targetCenter.y - 10 }, { targetCenter.x, targetCenter.y + 10 }, CV_RGB(0, 0, 255), 2);
-				}
+				}*/
 				//imshow("Target", copy_frame);
 			}
 			
@@ -415,7 +417,7 @@ int Start()
 						//cout << "sudoku position wiered" << endl;
 					}
 				else{
-					foundLED = true;
+					//foundLED = true;
 					Mat redNum;
 					Mat redRaw;
 					Rect rect1(xc,min(ya,yb),xd-xc,max(yc,yd)-min(ya,yb));
@@ -423,7 +425,7 @@ int Start()
 					threshold(src, binaryLED, 200, 255, THRESH_BINARY);
 					binaryLED(rect1).copyTo(redRaw);
 					//threshold(redBoard, redRev, 150, 255, THRESH_BINARY_INV);
-					recognizeLED(redRaw);					
+					foundLED = recognizeLED(redRaw);					
 					/*for(int i=0; i<5; i++){
 						Rect rect2(xc+i*(1.0/5.0)*(xd-xc),min(ya,yb),(1.0/5.0)*(xd-xc),max(yc,yd)-min(ya,yb));
 						binary(rect2).copyTo(redNum);
@@ -446,10 +448,11 @@ int Start()
 			
 			if (IsShow)
 			{
-				if (foundSudoku){
-					line(image, { sudoku_rects[target_sudoku].center.x - 10, sudoku_rects[target_sudoku].center.y }, { sudoku_rects[target_sudoku].center.x + 10, sudoku_rects[target_sudoku].center.y }, colour, 2);
-					line(image, { sudoku_rects[target_sudoku].center.x, sudoku_rects[target_sudoku].center.y - 10 }, { sudoku_rects[target_sudoku].center.x, sudoku_rects[target_sudoku].center.y + 10 }, colour, 2);
+				if (foundLED){
+					line(image, { target_point.x - 10, target_point.y }, { target_point.x + 10, target_point.y }, colour, 2);
+					line(image, { target_point.x, target_point.y - 10 }, { target_point.x, target_point.y + 10 }, colour, 2);
 				}
+				
 				string ledString = "";
 				for(int i=0; i< 5; i++){
 					ledString += to_string(ledDigits[i]);
@@ -467,7 +470,7 @@ int Start()
 	
 } // main
 
-void recognizeLED(Mat redRaw){
+bool recognizeLED(Mat redRaw){
 	resize(redRaw, redRaw, Size(544,162),INTER_CUBIC);
 	Mat element = getStructuringElement(CV_SHAPE_ELLIPSE, Size(5, 5));
 	//erode(redRaw, redBoard,element, Point(-1, -1), 1, 1, 1);
@@ -489,15 +492,14 @@ void recognizeLED(Mat redRaw){
 				j++;
 			//}
 			if (j>5){
-				foundLED = false;
-				break;
+				return false;
 			}
 		}
 	}
 	if (j!=5){
-		foundLED = false;
+		return false;
 	}
-	if(foundLED){
+	//if(foundLED){
 		for (int i=0; i<5; i++){
 			ledRect = boundingRect(digitCnt[i]);
 			//if 1
@@ -658,10 +660,10 @@ void recognizeLED(Mat redRaw){
 				}
 				
 				//ledBuffer[i] = y+1;
-				if(y!=10){
+				//if(y!=10){
 					ledDigits[i] = y+1;
 					//cout << ledRect.x << " " << ledRect.y << " " << ledRect.width << " " << ledRect.height << " " << endl << endl;
-				}
+				//}
 			}
 			
 			//cout << ledDigits[i] << " ";
@@ -681,7 +683,7 @@ void recognizeLED(Mat redRaw){
 			}
 		}*/
 		//cout << endl;
-	}
+	//}
 	
 	//imshow("redBoard",redBoard);
 
@@ -761,7 +763,8 @@ bool checkSudoku(const vector<vector<Point2i>> & contours, vector<RotatedRect> &
 
     if (sudoku > 15)
         return false;
-
+	if (sudoku <9)
+		return false;
     if(sudoku > 9){
         float dist_map[15][15] = {0};
         // calculate distance of each cell center
@@ -1087,12 +1090,12 @@ Mat findRed(Mat find_frame){
 		ya<0 || ya > roi_rect.y ||
 		xd<0 || xd > roi_rect.width + roi_rect.x ||
 		yd<0 || yd > roi_rect.y ){
-			foundLED = false;
+			return redRaw;
 			//cout << "sudoku position wiered" << endl;
 		}
 	else{
 		//cout << "######################" << endl;
-		foundLED = true;
+		//foundLED = true;
 		Rect rect1(xa, ya, width, height);
 		Mat binaryLED;
 		cvtColor(find_frame, binaryLED, CV_BGR2GRAY); 
@@ -1170,7 +1173,7 @@ bool findRange(Mat input_frame)
 						rectCounter ++;
 				}
 					
-				if (rectCounter > 3)
+				if (rectCounter > 2)
 					left_rect.push_back(leftRect[i]);
 				rectCounter = 0;
 			}
@@ -1190,7 +1193,7 @@ bool findRange(Mat input_frame)
 						rectCounter ++;
 				}
 					
-				if (rectCounter > 3){
+				if (rectCounter > 2){
 					right_rect.push_back(rightRect[i]);
 					//cout << rightRect[i].x << " " << rightRect[i].y << endl;
 				}

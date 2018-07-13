@@ -57,7 +57,6 @@ const char *ip2_bin = "ip2.bin";
 const char *ip2_bias_bin = "ip2.bias.bin";
 char* PATH = "/home/nvidia/Downloads/mnistCUDNN";
 float sudoku_result[9][10];
-int target_digit = 1;
 mutex mtx;
 
 /********************************************************
@@ -921,7 +920,6 @@ int DigitRecognition()
             low_memory = true;
 #endif
         }
-       
         {
             std::cout << "\nTesting single precision\n";
             network_t<float> mnist;
@@ -932,6 +930,8 @@ int DigitRecognition()
             bool newFrame = true;
             bool finishNine = false;
             bool frameSwitch = true;
+            Point lastLocations[3] = {Point(-100,-100),Point(-100,-100),Point(-100,-100)};
+			Point currentLocations[3];
             int ledBuffer[5] = {10,10,10,10,10};
             int counter = 0;
             int id[9] = {0};
@@ -939,11 +939,75 @@ int DigitRecognition()
             while(true){
 				int led[5];
 				//cout << foundSudoku << endl;
-				if (foundSudoku){
+				if (foundRange && foundLED){
+					//if (foundLED){
+						//cout << "TEST" << endl;
+						int changeCount = 0;
+						for(int i=0;i<5;i++){
+							if (ledBuffer[i]!=ledDigits[i] && ledDigits[i] != 10){
+								changeCount ++;
+								if(changeCount >1){
+									for(int j=0; j<5; j++){
+										if(ledDigits[i] != 10)
+											ledBuffer[j] = ledDigits[j];
+									}
+									changeCount = 0;
+									counter = 0;
+									break;
+								}
+							}
+						}
+						
+					//}
+					for(int i=1;i<=3;i++){
+						currentLocations[i-1] = match_number(fire_roi, i);
+					}
+					for(int i=1; i<=3; i++){
+						if(abs(currentLocations[i-1].x - lastLocations[i-1].x) > fire_roi.cols /3.2 
+						|| abs(currentLocations[i-1].y - lastLocations[i-1].y) > fire_roi.rows /3.2){
+							newFrame = true;
+							break;
+						}
+						if(i==3){
+							newFrame = false;
+						}
+					}
+					if(newFrame){
+						for(int i=0; i<3; i++){
+							//cout << lastLocations[i] << " " << currentLocations[i]  << endl;
+							lastLocations[i] = currentLocations[i];
+						}
+						newFrame = false;
+						//shooting condition determination
+						target_digit = ledBuffer[counter];
+						if (target_digit > 0 && target_digit <10){
+							target_point = match_number(fire_roi,target_digit) + roi_rect.tl();
+							//cout << "FIRE" << endl;
+						}
+						if(counter !=4) counter++;
+						else counter = 0;
+					}
+				}
+				if (foundSudoku && foundLED){
 					//cout << "TEST" ;
 					//LED Digit part
-					if (foundLED){
-						for(int i=0; i<5; i++){
+					//if (foundLED){
+						int changeCount = 0;
+						for(int i=0;i<5;i++){
+							if (ledBuffer[i]!=ledDigits[i] && ledDigits[i] != 10){
+								changeCount ++;
+								if(changeCount >1){
+									for(int j=0; j<5; j++){
+										if(ledDigits[i] != 10)
+											ledBuffer[j] = ledDigits[j];
+									}
+									changeCount = 0;
+									counter = 0;
+									break;
+								}
+							}
+						}
+						/*for(int i=0; i<5; i++){
 							if (ledBuffer[i]!=ledDigits[i] && ledDigits[i] != 10){
 								counter = 0;
 								for(int j=0; j<5; j++){
@@ -952,8 +1016,8 @@ int DigitRecognition()
 								}
 								break;
 							}
-						}
-					}
+						}*/
+					//}
 					for(int i=0;i<9;i++){
 						id[i] = mnist.classify_exampleMat(sudoku_mat[i], conv1, conv2, ip1, ip2, i);
 						/*if(id[i]==1 && sudoku_result[i][1]<0.45){
@@ -1047,13 +1111,14 @@ int DigitRecognition()
 							}
 							newFrame = false;
 							//shooting condition determination
-							target_digit = ledDigits[counter];
+							target_digit = ledBuffer[counter];
 							if (target_digit >0 && target_digit <10){
 								
 								for(int i=0;i<9;i++){
 									cout << id[i] << " ";
 									if (id[i] == target_digit){
-										target_sudoku = i;
+										target_point = sudoku_rects[i].center;
+										//target_sudoku = i;
 										//cout << "FIRE!!!";
 										finishNine = false;
 										//break;
