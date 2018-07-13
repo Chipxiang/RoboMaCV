@@ -20,7 +20,7 @@ using namespace std;
 
 const double pi = 3.14159265359;
 const bool IsShow = true;
-const bool UsingCam = true;
+const bool UsingCam = false;
 const double VAngle = 76*pi/180; // radian
 const int VideoWidth = 640; //1280
 const int VideoHeight = 480; //720
@@ -124,7 +124,7 @@ int Start()
 	else
 	{
 		cout << "Enter Video Name:" << endl;
-		string inputVideo = "Rune.avi";
+		string inputVideo = "nine.mp4";
 		//cin >> inputVideo;
 		MyVideo.open(inputVideo); 
 		if (!MyVideo.isOpened())
@@ -264,7 +264,7 @@ int Start()
 					line(image, { TargetXY.x, TargetXY.y - 10 }, { TargetXY.x, TargetXY.y + 10 }, colour, 2);
 				}
 			
-				namedWindow("Contours window");
+				//namedWindow("Contours window");
 				imshow("Contours window", image);
 			}
 			//waitKey(0);
@@ -330,7 +330,7 @@ int Start()
 				cout << "Video has been read out. " << endl;
 				break;
 			}
-			//resize(image, image, Size(640, 360), 0, 0, INTER_CUBIC);
+			resize(image, image, Size(640, 360), 0, 0, INTER_CUBIC);
 			Mat src;
 			cvtColor(image, src, CV_BGR2GRAY);
 			Mat binary;
@@ -458,7 +458,7 @@ int Start()
 					ledString += to_string(ledDigits[i]);
 				}
 				putText(image,ledString, Point(30,30), FONT_HERSHEY_SIMPLEX, 1, cvScalar(0,0,255), 1, CV_AA);
-				namedWindow("Contours window");
+				//namedWindow("Contours window");
 				imshow("Contours window", image);
 				waitKey(1);
 			}/*
@@ -1051,8 +1051,16 @@ Point match_number(Mat find_roi, int number)
 	{
 		return Point(-1,-1);
 	}
+	vector<vector<Point>> contours;
+	Mat binaryRoi;
+	cvtColor(find_roi, binaryRoi, CV_BGR2GRAY);
+	threshold(binaryRoi, binaryRoi, 180, 255, THRESH_BINARY);
+	findContours(binaryRoi, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, Point());
+	//cout << boundingRect(contours[0]).height << " " << find_roi.rows << endl;
 	
-	resize(dst, dst, Size(find_roi.cols/9.8,find_roi.cols/9.8*(4.0/3.0)), 0, 0, INTER_CUBIC);
+	
+	resize(dst, dst, Size(find_roi.rows/4.6*(7.0/8.0),find_roi.rows/4.6), 0, 0, INTER_CUBIC);
+	imshow("dstllalal", dst);
 	
 	/******************确保模板大小小于roi********************/
 	//cout << "TEST" << endl;
@@ -1086,9 +1094,9 @@ Mat findRed(Mat find_frame){
 	//cout << xa << " " << ya << endl;
 	//cout << " " << xd << " " << yd << endl;
 	//cout << "######################" << endl;
-	if (xa<0 || xa > roi_rect.width + roi_rect.x ||
-		ya<0 || ya > roi_rect.y ||
-		xd<0 || xd > roi_rect.width + roi_rect.x ||
+	if (xa< roi_rect.x || xa > roi_rect.width + roi_rect.x ||
+		ya< 0 || ya > roi_rect.y ||
+		xd< roi_rect.x || xd > roi_rect.width + roi_rect.x ||
 		yd<0 || yd > roi_rect.y ){
 			return redRaw;
 			//cout << "sudoku position wiered" << endl;
@@ -1099,7 +1107,7 @@ Mat findRed(Mat find_frame){
 		Rect rect1(xa, ya, width, height);
 		Mat binaryLED;
 		cvtColor(find_frame, binaryLED, CV_BGR2GRAY); 
-		threshold(binaryLED, binaryLED, 230, 255, THRESH_BINARY);
+		threshold(binaryLED, binaryLED, 240, 255, THRESH_BINARY);
 		binaryLED(rect1).copyTo(redRaw);
 		return redRaw;
 	}
@@ -1111,7 +1119,8 @@ bool findRange(Mat input_frame)
 	//cout << "enter find range" << endl;
 	//dst = Mat::zeros(int_frame.size(), CV_8UC3);
 	/*drawing 画布 将一些画矩形的操作在这个窗口输出*/
-	//drawing = Mat::zeros(int_frame.size(), CV_8UC3);
+	
+	
 	//copy = int_frame.clone();
 	/* copy_frame 备份*/
 	Mat copy_frame, int_frame;
@@ -1120,10 +1129,16 @@ bool findRange(Mat input_frame)
 	//imshow("in", copy_frame); //copy_frame is the original frame
 	/****************灰度 二值化******************/
 	cvtColor(int_frame, int_frame, CV_BGR2GRAY); //int_frame is the converted frame
-	threshold(int_frame, int_frame, 200, 255, THRESH_BINARY | THRESH_OTSU); //two flags determine the best threashold for binarization
 	
+	
+	threshold(int_frame, int_frame, 130, 255, THRESH_BINARY); //two flags determine the best threashold for binarization
+	//imshow("thresh", int_frame);
+	blur( int_frame, int_frame, Size(3,3) );
 	Canny(int_frame, int_frame, 120, 240); //这里用Canny的效果还不错
-	//imshow("THRESH", int_frame); //int_frame is the binarized image
+	
+		
+
+	 //int_frame is the binarized image
 	/**************开始找两侧的白色灯光*******************/
 	vector<vector<Point> > contours;
 	vector<Rect> rightRect; //all the contours on the right half
@@ -1135,11 +1150,11 @@ bool findRange(Mat input_frame)
 		vector<Rect> boundRect(contours.size());
 		for (int i = 0; i < contours.size(); i++)
 		{
-			if (contourArea(contours[i]) < 222 || contourArea(contours[i]) > 666){  //这里的值是根据实际情况做出处理 剔除一些明显不是的轮廓
+			if (contourArea(contours[i]) < 300 || contourArea(contours[i]) > 1500){  //这里的值是根据实际情况做出处理 剔除一些明显不是的轮廓
 				continue;
 			}
 			boundRect[i] = boundingRect(Mat(contours[i]));
-			if (boundRect[i].width*1.0 / (boundRect[i].height*1.0) < 1.6 || boundRect[i].width *1.0 / (boundRect[i].height*1.0)> 2.4)   //限制宽高比来进一步确定点 if语句内的值也可以根据实际改变
+			if (boundRect[i].width*1.0 / (boundRect[i].height*1.0) < 1.2 || boundRect[i].width *1.0 / (boundRect[i].height*1.0)> 2.8)   //限制宽高比来进一步确定点 if语句内的值也可以根据实际改变
 				continue;
 			//drawContours(input_frame, contours, i, Scalar(0.0, 255), 2);
 			//rectangle(int_frame, boundRect[i], Scalar(255, 0, 0));
@@ -1152,7 +1167,19 @@ bool findRange(Mat input_frame)
 		}
 		groupRectangles(leftRect, 1, 0.2);
 		groupRectangles(rightRect, 1, 0.2);
-		if(leftRect.size() > 3 && rightRect.size()>3) {
+		
+		/*Mat drawing = Mat::zeros(int_frame.size(), CV_8UC3);
+		for (int i = 0; i < rightRect.size(); i++)
+		{
+			rectangle(drawing, rightRect[i], Scalar(0, 255, 0), 2);
+			
+		}
+		for(int i=0; i<leftRect.size(); i++){
+			rectangle(drawing, leftRect[i], Scalar(0, 255, 0), 2);
+		}
+		imshow("drawing", drawing);*/
+		
+		if(leftRect.size() >= 5 && rightRect.size()>= 5) {
 			//cout << leftRect.size() << " " << rightRect.size() << endl;
 			vector<Rect> left_rect;
 			vector<Rect> right_rect;
@@ -1162,18 +1189,19 @@ bool findRange(Mat input_frame)
 		//		return false;
 
 			/*判断左侧的每一个矩形之间的左上坐标的x的误差值*/
+			//cout << "More" << endl;
 			int rectCounter = 0;
 			for (int i = 0; i < leftRect.size(); i++)
 			{
 				for (int j = 0; j < leftRect.size(); j++){
 					if(i==j)
 						continue;
-					if (abs(leftRect[i].tl().x - leftRect[j].tl().x) < 0.2*leftRect[i].width && leftRect[i].height - leftRect[j].height <0.2*leftRect[i].height
+					if (abs(leftRect[i].tl().x - leftRect[j].tl().x) < 0.4*leftRect[i].width && leftRect[i].height - leftRect[j].height <0.2*leftRect[i].height
 					&& leftRect[i].width - leftRect[i].width < 0.2 * leftRect[i].width )
 						rectCounter ++;
 				}
 					
-				if (rectCounter > 2)
+				if (rectCounter > 3)
 					left_rect.push_back(leftRect[i]);
 				rectCounter = 0;
 			}
@@ -1188,71 +1216,73 @@ bool findRange(Mat input_frame)
 				for (int j = 0; j < rightRect.size(); j++){
 					if(i==j)
 						continue;
-					if (abs(rightRect[i].tl().x - rightRect[j].tl().x) < 0.2*rightRect[i].width && rightRect[i].height - rightRect[j].height <0.2*rightRect[i].height
+					if (abs(rightRect[i].tl().x - rightRect[j].tl().x) < 0.4*rightRect[i].width && rightRect[i].height - rightRect[j].height <0.2*rightRect[i].height
 					&& rightRect[i].width - rightRect[i].width < 0.2 * rightRect[i].width )
 						rectCounter ++;
 				}
 					
-				if (rectCounter > 2){
+				if (rectCounter > 3){
 					right_rect.push_back(rightRect[i]);
 					//cout << rightRect[i].x << " " << rightRect[i].y << endl;
 				}
 				rectCounter = 0;
 			}
-			
-			/*判断右侧的每一个矩形之间的左上坐标的x的误差值*/
-			/*bool find_right = true;
-			for (int i = 0; i < rightRect.size() - 1; i++)
-			{
-
-				for (int j = 1; j < rightRect.size(); j--)
+				
+				/*判断右侧的每一个矩形之间的左上坐标的x的误差值*/
+				/*bool find_right = true;
+				for (int i = 0; i < rightRect.size() - 1; i++)
 				{
 
-					if (abs(rightRect[i].tl().x - rightRect[j].tl().x) > 10)
-						find_right = false;
-				}
-				if (find_right)
-					right_rect.push_back(rightRect[i]);
-				find_right = true;
-			}*/
-			/*for (int i = 0; i < right_rect.size(); i++)
-			{
-				//rectangle(input_frame, right_rect[i], Scalar(0, 255, 0), 2);
-				rectangle(input_frame, leftRect[i], Scalar(0, 255, 0), 2);
-			}*/
-			//imshow("drawing", drawing);
+					for (int j = 1; j < rightRect.size(); j--)
+					{
+
+						if (abs(rightRect[i].tl().x - rightRect[j].tl().x) > 10)
+							find_right = false;
+					}
+					if (find_right)
+						right_rect.push_back(rightRect[i]);
+					find_right = true;
+				}*/	
+
+			
+			
+
+			
 
 			/******这个函数是给师姐做的数码管识别做的 确定现在达到第几个数字******/
 //			bool change = judge_which_number(copy_frame(right_rect[0]));
 			//cout << change << endl;
 			//cout << right_rect.size() << " " << left_rect.size() << endl;
-			if(right_rect.size() > 3 && left_rect.size()> 3){
+			if(right_rect.size() ==5 && left_rect.size()==5){
 				//cout << "find left and right" << endl;
 				//高度设定为最低矩形的右下点到最高矩形的左上点的y的差 （以右侧的为准）
 				//c, adjusted into the max and min of two
-				int height = (abs(max(right_rect[0].br().y, left_rect[0].br().y) - min(right_rect[right_rect.size()-1].tl().y, right_rect[right_rect.size() - 1].tl().y)));
+				int height = (abs(max(right_rect[0].br().y, left_rect[0].br().y) - min(right_rect[right_rect.size()-1].tl().y, left_rect[left_rect.size() - 1].tl().y)));
 				//int height = (abs(max(right_rect[0].br().y, left_rect[0].br().y) - min(right_rect[right_rect.size()-1].tl().y, right_rect[right_rect.size() - 1].tl().y))\
 					+ 2*right_rect[0].height); 
-				int y = left_rect[left_rect.size() - 1].tl().y;
+				int y =  min(right_rect[right_rect.size()-1].tl().y, left_rect[left_rect.size() - 1].tl().y);
 
 				/*判断设定的高度加上起始y的值是否超过图片的宽度*/
-				y = (y - right_rect[0].height) < 0 ? 0 : (y - right_rect[0].height); //c
-				(height + y) > copy_frame.rows ? (height = copy_frame.rows - y) : height; //c
+				if( y - right_rect[0].height < 0 || (height + y) > copy_frame.rows){
+					return false;
+				} //c
 				
 				int start_x=1000, start_y=1000; //the starting point of roi_rect
-				for (int i=0; i<left_rect.size(); i++) {
+				/*for (int i=0; i<left_rect.size(); i++) {
 					if (start_x>left_rect[i].br().x) {
 						start_x=left_rect[i].br().x;
 					}
-				}
-
-				start_y=min(left_rect[left_rect.size()-1].tl().y, right_rect[right_rect.size() - 1].tl().y);
-				start_x+= (right_rect[right_rect.size()-1].br().x-right_rect[right_rect.size()-1].tl().x)*0.645;
-				start_y-=(right_rect[right_rect.size()-1].br().x-right_rect[right_rect.size()-1].tl().x)*0.03125;
+				}*/
+				start_x = left_rect[left_rect.size()-1].br().x;
+				
+				start_y = min(left_rect[left_rect.size()-1].tl().y, right_rect[right_rect.size() - 1].tl().y);
+				start_x += left_rect[0].width*0.5;
+				start_y -= left_rect[0].height*0.5;
 
 				/****这个矩形内的图片就是我要进行模板匹配的图片 这个矩形的范围可以在rectangle窗口自己观察****************/
-				int roi_height = height+(right_rect[right_rect.size()-1].br().x-right_rect[right_rect.size()-1].tl().x)*0.03125;
-				roi_rect = Rect(start_x*0.95, start_y*0.95,roi_height*1.1*1.7,roi_height*1.1);
+				int roi_height = height + left_rect[0].height;
+				int roi_width = right_rect[0].tl().x - left_rect[0].br().x - left_rect[0].width;
+				roi_rect = Rect(start_x, start_y , roi_width ,roi_height);
 
 				//cout <<left_rect[0].br().y << endl;
 				//cout << right_rect[0].height << endl;
@@ -1260,11 +1290,12 @@ bool findRange(Mat input_frame)
 				//cout << left_rect[left_rect.size() - 1].tl().y << endl;
 				//rectangle(drawing, roi_rect, Scalar(0, 0, 255), 5);
 				//cout << "yes" <<endl;
-				if(start_x >= 0 && start_y >= 0 && start_x+ roi_height*1.7*1.1< copy_frame.size().width && start_y + roi_height*1.1 < copy_frame.size().height)
+				if(start_x >= 0 && start_y >= 0 && start_x+ roi_width < copy_frame.size().width && start_y + roi_height < copy_frame.size().height)
 				{
 					fire_roi = copy_frame(roi_rect);
 					//cvtColor(roi, roi, CV_BGR2GRAY); 
-					threshold(fire_roi, fire_roi, 200, 255, THRESH_BINARY);
+					threshold(fire_roi, fire_roi, 245, 255, THRESH_BINARY);
+					imshow("fireRoi",fire_roi);
 					if (!fire_roi.data)
 						return false;
 

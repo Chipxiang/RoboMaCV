@@ -323,6 +323,7 @@ private:
     }
 };
 
+
 template <>
 void Layer_t<half1>::readAllocInit(const char* fname, int size, half1** data_h, half1** data_d)
 {
@@ -330,7 +331,6 @@ void Layer_t<half1>::readAllocInit(const char* fname, int size, half1** data_h, 
     int size_b = size*sizeof(half1);
     checkCudaErrors( cudaMalloc(data_d, size_b) );    
     float *data_tmp_h, *data_tmp_d;
-
     switch(fp16Import)
     {
         case FP16_HOST :
@@ -892,6 +892,7 @@ void displayUsage()
     printf( "image=<name>           : classify specific image\n");
 }
 
+
 int DigitRecognition()
 {   
     int i1,i2,i3;
@@ -937,6 +938,7 @@ int DigitRecognition()
             int id[9] = {0};
             int idBuffer[9] = {0};
             while(true){
+				//target_point = match_number(fire_roi,9)+ roi_rect.tl();
 				int led[5];
 				//cout << foundSudoku << endl;
 				if (foundRange && foundLED){
@@ -957,7 +959,6 @@ int DigitRecognition()
 								}
 							}
 						}
-						
 					//}
 					for(int i=1;i<=3;i++){
 						currentLocations[i-1] = match_number(fire_roi, i);
@@ -972,6 +973,7 @@ int DigitRecognition()
 							newFrame = false;
 						}
 					}
+					
 					if(newFrame){
 						for(int i=0; i<3; i++){
 							//cout << lastLocations[i] << " " << currentLocations[i]  << endl;
@@ -982,12 +984,14 @@ int DigitRecognition()
 						target_digit = ledBuffer[counter];
 						if (target_digit > 0 && target_digit <10){
 							target_point = match_number(fire_roi,target_digit) + roi_rect.tl();
+							//target_point = match_number(fire_roi,9)+ roi_rect.tl();
 							//cout << "FIRE" << endl;
 						}
 						if(counter !=4) counter++;
 						else counter = 0;
 					}
 				}
+				
 				if (foundSudoku && foundLED){
 					//cout << "TEST" ;
 					//LED Digit part
@@ -1131,7 +1135,6 @@ int DigitRecognition()
 						}
 					}
 				}
-				
 			}
 			
             //get_path(image_path, first_image, PATH);
@@ -1164,5 +1167,4 @@ int main(int argc, char *argv[])
 	thread mainThread, digitThread;
 	mainThread = thread(Start);
 	DigitRecognition();
-	
 }
