@@ -25,7 +25,8 @@ const double VAngle = 76*pi/180; // radian
 const int VideoWidth = 640; //1280
 const int VideoHeight = 480; //720
 const int ThreNum = 3; //After test, 3 is the optimal for Odroid UX4
-const double FocusPixel = 1.0/tan(VAngle/2)*VideoWidth/2;;
+const double FocusPixel = 1.0/tan(VAngle/2)*VideoWidth/2;
+const double verOffset = 35;
 bool foundSudoku = false;
 bool foundLED = false;
 void ColSeg(Mat&, int, int, int);
@@ -50,7 +51,6 @@ bool foundRange = false;
 Rect roi_rect;
 Point target_point = Point(1,1);
 
-
 struct Point2fWithIdx {
 		cv::Point2f p;
 		size_t idx;
@@ -68,8 +68,8 @@ struct contour_sorter // 'less' for contours
 };
 vector<cv::RotatedRect> sudoku_rects;
 Mat sudoku_mat[9];
-int sudoku_width = 127;
-int sudoku_height = 71;
+int sudoku_width = 98;
+int sudoku_height = 56;
 RotatedRect adjustRRect(const cv::RotatedRect & rect);
 /* Armour Camera settings:
    Brightness -64
@@ -124,7 +124,7 @@ int Start()
 	else
 	{
 		cout << "Enter Video Name:" << endl;
-		string inputVideo = "nine.mp4";
+		string inputVideo = "IMG_7612.m4v";
 		//cin >> inputVideo;
 		MyVideo.open(inputVideo); 
 		if (!MyVideo.isOpened())
@@ -330,16 +330,24 @@ int Start()
 				cout << "Video has been read out. " << endl;
 				break;
 			}
-			resize(image, image, Size(640, 360), 0, 0, INTER_CUBIC);
+			//
+			if(!UsingCam)
+				resize(image, image, Size(640, 360), 0, 0, INTER_CUBIC);//comment when using camera
 			Mat src;
 			cvtColor(image, src, CV_BGR2GRAY);
 			Mat binary;
 			threshold(src, binary, 160, 255, THRESH_BINARY);
+			
 			//threshold(src, binary, 200, 255, THRESH_BINARY);
 			vector<vector<Point2i>> contours;
 			vector<Vec4i> hierarchy;
-			
+			//Canny(binary, binary, 120, 240); 
+			//imshow("binarytest",binary);
 			findContours(binary, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+			/*for (int i = 0; i < contours.size(); i++)
+			{
+				rectangle(image, boundingRect(contours[i]), Scalar(0.0, 255));
+			}*/
 			sudoku_rects.clear();
 			foundSudoku = checkSudoku(contours, sudoku_rects);
 			if (foundSudoku){
@@ -353,7 +361,8 @@ int Start()
 			colour = CV_RGB(0, 0, 255);
 			//qiyue adding
 			//cout << "testing on qiyue section" << endl;
-			//cout << "testing on foundSudoku: " << foundSudoku << endl;
+			//cout << "testing on found
+			//Sudoku: " << foundSudoku << endl;
 			//output center
 			
 			if (foundRange){
@@ -474,8 +483,8 @@ bool recognizeLED(Mat redRaw){
 	resize(redRaw, redRaw, Size(544,162),INTER_CUBIC);
 	Mat element = getStructuringElement(CV_SHAPE_ELLIPSE, Size(5, 5));
 	//erode(redRaw, redBoard,element, Point(-1, -1), 1, 1, 1);
-	dilate(redRaw, redBoard,element, Point(-1, -1), 4, 1, 1);
-	//imshow("Board",redBoard);
+	dilate(redRaw, redBoard,element, Point(-1, -1), 3, 1, 1);
+	imshow("Board",redBoard);
 	vector<vector<Point>> contours;
 	findContours(redBoard, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
 	vector<vector<Point>> digitCnt;
@@ -483,7 +492,7 @@ bool recognizeLED(Mat redRaw){
 	sort(contours.begin(), contours.end(), contour_sorter());
 	int j=0;
 	for (int i = 0; i < contours.size(); i++){
-		if(contours[i].size() > 10){
+		if(contours[i].size() > 100){
 			ledRect = boundingRect(contours[i]);
 			//if(ledRect.width/ledRect.height>91.0/123.0-0.1 && ledRect.width/ledRect.height>91.0/123.0+0.1){
 				//rectangle(redBoard, ledRect, colour);
@@ -737,9 +746,10 @@ bool checkSudoku(const vector<vector<Point2i>> & contours, vector<RotatedRect> &
 	float ratio = 28.0 / 16.0;
 	int sudoku = 0;
 
-    float low_threshold = 0.6;
-    float high_threshold = 1.4;
+    float low_threshold = 0.4;
+    float high_threshold = 1.6;
     vector<Point2f> centers;
+    //cout << contours.size() << endl; 
     for (size_t i = 0; i < contours.size(); i++) {
 		RotatedRect rect = minAreaRect(contours[i]);
 		rect = adjustRRect(rect);
@@ -749,7 +759,10 @@ bool checkSudoku(const vector<vector<Point2i>> & contours, vector<RotatedRect> &
 		if (ratio_cur > 0.8 * ratio && ratio_cur < 1.2 * ratio &&
 			s.width > low_threshold * width && s.width < high_threshold * width &&
 			s.height > low_threshold * height && s.height < high_threshold * height &&
-			((rect.angle > -10 && rect.angle < 10) || rect.angle < -170 || rect.angle > 170)){
+			((rect.angle > -10 && rect.angle < 10) || rect.angle < -170 || rect.angle > 170))
+			/*if (ratio_cur > 0.8 * ratio && ratio_cur < 1.2 * ratio &&
+			((rect.angle > -20 && rect.angle < 20) || rect.angle < -160 || rect.angle > 160) &&
+			contourArea(contours[i]) < 300 || contourArea(contours[i]) > 1500)*/{
 
 			sudoku_rects.push_back(rect);
             centers.push_back(rect.center);
@@ -758,9 +771,9 @@ bool checkSudoku(const vector<vector<Point2i>> & contours, vector<RotatedRect> &
             ++sudoku;
 		}
 	}
-
-    //cout << "sudoku num: " << sudoku << endl;
-
+	//rectangle(find_roi, Rect(minLoc.x, minLoc.y, dst.cols, dst.rows), Scalar(0, 0, 255), 1);
+	//cout << "sudoku num: " << sudoku << endl;
+	
     if (sudoku > 15)
         return false;
 	if (sudoku <9)
@@ -1060,7 +1073,7 @@ Point match_number(Mat find_roi, int number)
 	
 	
 	resize(dst, dst, Size(find_roi.rows/4.6*(7.0/8.0),find_roi.rows/4.6), 0, 0, INTER_CUBIC);
-	imshow("dstllalal", dst);
+	//imshow("dstllalal", dst);
 	
 	/******************确保模板大小小于roi********************/
 	//cout << "TEST" << endl;
@@ -1109,6 +1122,7 @@ Mat findRed(Mat find_frame){
 		cvtColor(find_frame, binaryLED, CV_BGR2GRAY); 
 		threshold(binaryLED, binaryLED, 240, 255, THRESH_BINARY);
 		binaryLED(rect1).copyTo(redRaw);
+		//imshow("redRaw", redRaw);
 		return redRaw;
 	}
 	return redRaw;
@@ -1294,8 +1308,8 @@ bool findRange(Mat input_frame)
 				{
 					fire_roi = copy_frame(roi_rect);
 					//cvtColor(roi, roi, CV_BGR2GRAY); 
-					threshold(fire_roi, fire_roi, 245, 255, THRESH_BINARY);
-					imshow("fireRoi",fire_roi);
+					threshold(fire_roi, fire_roi, 180, 255, THRESH_BINARY);
+					//imshow("fireRoi",fire_roi);
 					if (!fire_roi.data)
 						return false;
 

@@ -696,6 +696,7 @@ class network_t
                                           dstTensorDesc,
                                           *dstData) );
     }
+  
     void softmaxForward(int n, int c, int h, int w, value_type* srcData, value_type** dstData)
     {
         resize(n*c*h*w, dstData);
@@ -743,6 +744,7 @@ class network_t
                                             dstTensorDesc,
                                             *dstData) );
     }
+   
     void activationForward(int n, int c, int h, int w, value_type* srcData, value_type** dstData)
     {
         checkCUDNN( cudnnSetActivationDescriptor(activDesc,
@@ -751,7 +753,6 @@ class network_t
                                                 0.0) );
     
         resize(n*c*h*w, dstData);
-
         setTensorDesc(srcTensorDesc, tensorFormat, dataType, n, c, h, w);
         setTensorDesc(dstTensorDesc, tensorFormat, dataType, n, c, h, w);
 
@@ -871,6 +872,7 @@ class network_t
     }
 };
 
+
 #if !defined(CUDA_VERSION) || (CUDA_VERSION <= 7000)
 // using 1x1 convolution to emulate gemv in half precision when cuBLAS version <= 7.0
 template <>
@@ -892,9 +894,9 @@ void displayUsage()
     printf( "image=<name>           : classify specific image\n");
 }
 
-
 int DigitRecognition()
-{   
+{
+	double YawAng, PitAng;
     int i1,i2,i3;
     int version = (int)cudnnGetVersion();
     printf("cudnnGetVersion() : %d , CUDNN_VERSION from cudnn.h : %d (%s)\n", version, CUDNN_VERSION, CUDNN_VERSION_STR);
@@ -959,6 +961,8 @@ int DigitRecognition()
 								}
 							}
 						}
+				
+
 					//}
 					for(int i=1;i<=3;i++){
 						currentLocations[i-1] = match_number(fire_roi, i);
@@ -984,6 +988,9 @@ int DigitRecognition()
 						target_digit = ledBuffer[counter];
 						if (target_digit > 0 && target_digit <10){
 							target_point = match_number(fire_roi,target_digit) + roi_rect.tl();
+							YawAng = 180.0/pi*atan((VideoWidth/2 - target_point.x)/FocusPixel);
+							PitAng = 180.0/pi*atan((VideoHeight/2 - target_point.y + verOffset)/FocusPixel);
+							cout << "Yaw:"<<YawAng<<" Pitch:"<<PitAng <<endl;
 							//target_point = match_number(fire_roi,9)+ roi_rect.tl();
 							//cout << "FIRE" << endl;
 						}
@@ -1052,6 +1059,7 @@ int DigitRecognition()
 									}
 								}
 							}
+						
 						}
 						int redundancyCheck[9][10] = {0}; //id, redundancy
 						//redundancy ellimination
@@ -1075,6 +1083,7 @@ int DigitRecognition()
 												}
 											}
 										}
+										
 										else{
 											redundancyCheck[j][sameId] = 1;
 											float acc = 0;
@@ -1122,6 +1131,9 @@ int DigitRecognition()
 									cout << id[i] << " ";
 									if (id[i] == target_digit){
 										target_point = sudoku_rects[i].center;
+										YawAng = 180.0/pi*atan((VideoWidth/2 - target_point.x)/FocusPixel);
+										PitAng = 180.0/pi*atan((VideoHeight/2 - target_point.y + verOffset)/FocusPixel);
+										cout << "Yaw:"<<YawAng<<" Pitch:"<<PitAng <<endl;
 										//target_sudoku = i;
 										//cout << "FIRE!!!";
 										finishNine = false;
